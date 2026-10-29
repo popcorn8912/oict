@@ -1,0 +1,76 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/popcorn8912/oict/schemas/participant.schema.json",
+  "title": "OICT Participant",
+  "type": "object",
+  "required": [
+    "id",
+    "kind"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "kind": {
+      "enum": [
+        "platform",
+        "developer",
+        "application",
+        "merchant",
+        "consumer",
+        "agent"
+      ]
+    },
+    "ageBand": {
+      "enum": [
+        "under13",
+        "13-17",
+        "adult"
+      ],
+      "description": "Required for consumers (spec/04)."
+    },
+    "displayName": {
+      "type": "string"
+    },
+    "platformId": {
+      "type": "string",
+      "description": "Applications only (MPA-6)."
+    },
+    "developerId": {
+      "type": "string",
+      "description": "Applications only (MPA-6)."
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "kind": {
+            "const": "application"
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "platformId",
+          "developerId"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "kind": {
+            "const": "consumer"
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "ageBand"
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,54 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: test · node ${{ matrix.node }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node: ["22", "24"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+      - name: Unit + conformance tests
+        run: npm test
+      - name: Conformance report
+        run: node conformance/cli.ts --spawn --compact --json conformance-report.json
+      - name: Anomaly-injection benchmark
+        run: npm run bench -- --out bench-results
+      - uses: actions/upload-artifact@v4
+        with:
+          name: reports-node-${{ matrix.node }}
+          path: |
+            conformance-report.json
+            bench-results/
+
+  typecheck:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: npm install --no-audit --no-fund
+      - run: npm run typecheck
+
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Server + conformance in containers
+        run: docker compose up --build --abort-on-container-exit --exit-code-from conformance

@@ -1,0 +1,44 @@
+{
+  "name": "oict",
+  "version": "0.1.0",
+  "description": "Open Immersive Commerce Transaction Framework: a transaction-integrity layer for real-world purchases inside games, 3D worlds, AR/VR and AI shopping agents.",
+  "type": "module",
+  "license": "Apache-2.0",
+  "author": "Cirun Zhang",
+  "engines": {
+    "node": ">=22.18"
+  },
+  "main": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "bin": {
+    "oict-server": "./src/server/main.ts",
+    "oict-conformance": "./conformance/cli.ts"
+  },
+  "scripts": {
+    "start": "node src/server/main.ts",
+    "dev": "OICT_TEST_HOOKS=1 node --watch src/server/main.ts",
+    "test": "node --test \"test/**/*.test.ts\"",
+    "conformance": "node conformance/cli.ts --spawn",
+    "bench": "node benchmarks/anomaly-injection.ts",
+    "demo": "node examples/walkthrough.ts",
+    "typecheck": "tsc --noEmit",
+    "check": "npm test && npm run conformance && npm run bench"
+  },
+  "keywords": [
+    "immersive-commerce",
+    "agentic-commerce",
+    "transaction-integrity",
+    "idempotency",
+    "authorization",
+    "conformance",
+    "spatial-computing",
+    "ai-agents",
+    "consumer-protection"
+  ],
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "typescript": "^5.8.0"
+  }
+}

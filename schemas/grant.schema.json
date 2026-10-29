@@ -1,0 +1,64 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/popcorn8912/oict/schemas/grant.schema.json",
+  "title": "OICT Grant",
+  "type": "object",
+  "required": [
+    "id",
+    "issuer",
+    "subject",
+    "application",
+    "scopes",
+    "issuedAt",
+    "expiresAt"
+  ],
+  "properties": {
+    "id": {
+      "type": "string"
+    },
+    "issuer": {
+      "type": "string"
+    },
+    "subject": {
+      "type": "string"
+    },
+    "application": {
+      "type": "string"
+    },
+    "scopes": {
+      "type": "array",
+      "items": {
+        "enum": [
+          "catalog:read",
+          "cart:write",
+          "checkout:prepare",
+          "order:place",
+          "order:read"
+        ]
+      },
+      "minItems": 1,
+      "uniqueItems": true
+    },
+    "parentGrantId": {
+      "type": "string"
+    },
+    "issuedAt": {
+      "type": "integer",
+      "description": "epoch ms"
+    },
+    "expiresAt": {
+      "type": "integer",
+      "description": "epoch ms"
+    },
+    "revokedAt": {
+      "type": "integer"
+    },
+    "guardianConsentRef": {
+      "type": "string"
+    },
+    "maxOrderTotalMinor": {
+      "type": "integer",
+      "minimum": 0
+    }
+  }
+}

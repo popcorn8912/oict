@@ -1,0 +1,101 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 400" width="1280" height="400" role="img" aria-labelledby="t d">
+  <title id="t">How OICT sits in the purchase path</title>
+  <desc id="d">Purchase requests from 3D scenes, AR/VR and AI agents pass through the OICT layer, which checks authority, snapshot binding, agent limits and minor protection before the commerce protocol creates an order. Valid requests pass; a stale confirmation and an agent overreach are stopped.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#1B1640"/><stop offset="1" stop-color="#110E26"/>
+    </linearGradient>
+    <linearGradient id="gate" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#5EE7DF"/><stop offset=".5" stop-color="#B490FF"/><stop offset="1" stop-color="#FF8BD1"/>
+    </linearGradient>
+    <filter id="soft" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="6"/></filter>
+    <path id="p1" d="M250 110 C 380 110, 400 200, 520 200 L 760 200 C 860 200, 880 200, 1000 200"/>
+    <path id="p2" d="M250 200 L 1000 200"/>
+    <path id="p3" d="M250 290 C 380 290, 400 200, 516 200"/>
+    <path id="p4" d="M250 110 C 380 110, 400 200, 516 200"/>
+    <style>
+      text { font-family: "Instrument Sans", "Segoe UI", "Helvetica Neue", Arial, sans-serif; }
+      .h { font-family: "Unbounded", "Segoe UI", "Helvetica Neue", Arial, sans-serif; font-weight: 700; }
+      .mono { font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+      .wire { fill: none; stroke: #3A3277; stroke-width: 2; }
+      .flowdash { fill: none; stroke: #B490FF; stroke-opacity: .5; stroke-width: 2; stroke-dasharray: 3 12; animation: dash 2.4s linear infinite; }
+      @keyframes dash { to { stroke-dashoffset: -60 } }
+      .stop1 { animation: flash 8s infinite 2.2s; opacity: 0 }
+      .stop2 { animation: flash 8s infinite 6.2s; opacity: 0 }
+      @keyframes flash { 0% { opacity: 0 } 3%,20% { opacity: 1 } 26%,100% { opacity: 0 } }
+      .pulse { animation: pulse 2s ease-in-out infinite; transform-origin: center; transform-box: fill-box; }
+      @keyframes pulse { 0%,100% { opacity: .55 } 50% { opacity: 1 } }
+      @media (prefers-reduced-motion: reduce) { .flowdash, .pulse { animation: none } .stop1 { animation: none; opacity: 1 } }
+    </style>
+  </defs>
+  <rect width="1280" height="400" rx="24" fill="url(#bg)"/>
+
+  <!-- column headings -->
+  <text x="150" y="44" fill="#8F89BD" font-size="15" text-anchor="middle">Where the shopper is</text>
+  <text x="640" y="44" fill="#8F89BD" font-size="15" text-anchor="middle">OICT integrity layer</text>
+  <text x="1110" y="44" fill="#8F89BD" font-size="15" text-anchor="middle">Your checkout</text>
+
+  <!-- wires -->
+  <path class="wire" d="M250 110 C 380 110, 400 200, 520 200"/>
+  <path class="wire" d="M250 200 L 520 200"/>
+  <path class="wire" d="M250 290 C 380 290, 400 200, 520 200"/>
+  <path class="wire" d="M760 200 L 1000 200"/>
+  <path class="flowdash" d="M760 200 L 1000 200"/>
+
+  <!-- sources -->
+  <g>
+    <rect x="50" y="84" width="200" height="52" rx="26" fill="#1F1A48" stroke="#3A3277"/>
+    <path d="M82 100 l12 7 v14 l-12 7 l-12 -7 v-14 z" fill="none" stroke="#5EE7DF" stroke-width="2"/>
+    <text x="110" y="116" fill="#ECE9FF" font-size="16">3D game / world</text>
+    <rect x="50" y="174" width="200" height="52" rx="26" fill="#1F1A48" stroke="#3A3277"/>
+    <rect x="70" y="192" width="26" height="16" rx="8" fill="none" stroke="#B490FF" stroke-width="2"/>
+    <text x="110" y="206" fill="#ECE9FF" font-size="16">AR / VR scene</text>
+    <rect x="50" y="264" width="200" height="52" rx="26" fill="#1F1A48" stroke="#3A3277"/>
+    <path d="M70 282 h26 v14 h-16 l-6 6 v-6 h-4 z" fill="none" stroke="#FF8BD1" stroke-width="2" stroke-linejoin="round"/>
+    <text x="110" y="296" fill="#ECE9FF" font-size="16">AI shopping agent</text>
+  </g>
+
+  <!-- gate -->
+  <rect x="520" y="70" width="240" height="260" rx="20" fill="#1F1A48" stroke="url(#gate)" stroke-width="2"/>
+  <rect x="520" y="70" width="240" height="260" rx="20" fill="none" stroke="url(#gate)" stroke-width="6" opacity=".35" filter="url(#soft)" class="pulse"/>
+  <g font-size="15" fill="#ECE9FF">
+    <g transform="translate(548 104)"><circle r="5" fill="#5EE7DF"/><text x="16" y="5">Who may act, for whom</text></g>
+    <g transform="translate(548 146)"><circle r="5" fill="#9FB8FF"/><text x="16" y="5">Saw it = ordered it</text></g>
+    <g transform="translate(548 254)"><circle r="5" fill="#B490FF"/><text x="16" y="5">Agents prepare only</text></g>
+    <g transform="translate(548 296)"><circle r="5" fill="#FF8BD1"/><text x="16" y="5">Minors protected</text></g>
+  </g>
+  <path d="M528 200 H752" stroke="#B490FF" stroke-width="2" stroke-dasharray="2 8" opacity=".7"/>
+  <text x="640" y="358" fill="#8F89BD" font-size="13" text-anchor="middle" class="mono">39 conformance checks</text>
+
+  <!-- destination -->
+  <rect x="1000" y="150" width="220" height="100" rx="20" fill="#1F1A48" stroke="#3A3277"/>
+  <text x="1110" y="190" fill="#ECE9FF" font-size="16" text-anchor="middle">UCP · ACP · platform API</text>
+  <text x="1110" y="218" fill="#7CF2B0" font-size="15" text-anchor="middle">one intended order</text>
+
+  <!-- packets: pass -->
+  <circle r="8" fill="#7CF2B0">
+    <animateMotion dur="4s" repeatCount="indefinite" keyPoints="0;1" keyTimes="0;1" calcMode="linear"><mpath href="#p1"/></animateMotion>
+  </circle>
+  <circle r="8" fill="#7CF2B0" opacity=".9">
+    <animateMotion dur="4s" begin="2s" repeatCount="indefinite"><mpath href="#p2"/></animateMotion>
+  </circle>
+  <!-- packets: blocked at the gate -->
+  <circle r="8" fill="#FF6B8A">
+    <animateMotion dur="8s" begin="0s" repeatCount="indefinite" keyPoints="0;1;1" keyTimes="0;.28;1" calcMode="linear"><mpath href="#p4"/></animateMotion>
+    <animate attributeName="opacity" values="1;1;0;0" keyTimes="0;.3;.4;1" dur="8s" repeatCount="indefinite"/>
+  </circle>
+  <circle r="8" fill="#FF6B8A">
+    <animateMotion dur="8s" begin="4s" repeatCount="indefinite" keyPoints="0;1;1" keyTimes="0;.28;1" calcMode="linear"><mpath href="#p3"/></animateMotion>
+    <animate attributeName="opacity" values="1;1;0;0" keyTimes="0;.3;.4;1" dur="8s" begin="4s" repeatCount="indefinite"/>
+  </circle>
+
+  <!-- block labels -->
+  <g class="stop1">
+    <rect x="60" y="340" width="300" height="36" rx="18" fill="#3A1830" stroke="#FF6B8A"/>
+    <text x="210" y="363" fill="#FF6B8A" font-size="14" text-anchor="middle" class="mono">⛔ STALE_CONFIRMATION</text>
+  </g>
+  <g class="stop2">
+    <rect x="60" y="340" width="300" height="36" rx="18" fill="#3A1830" stroke="#FF6B8A"/>
+    <text x="210" y="363" fill="#FF6B8A" font-size="14" text-anchor="middle" class="mono">⛔ AGENT_FORBIDDEN</text>
+  </g>
+</svg>

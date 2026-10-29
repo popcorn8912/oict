@@ -1,0 +1,25 @@
+cff-version: 1.2.0
+message: "If you use OICT in research or in a product evaluation, please cite it as below."
+title: "OICT: Open Immersive Commerce Transaction Framework"
+abstract: >-
+  A transaction-integrity layer for real-world purchases made inside immersive
+  applications (games, 3D worlds, AR/VR) and through AI shopping agents. OICT
+  specifies multi-party authorization, binding between interaction state and
+  orders, AI agent purchase controls and minor-protection rules, and ships a
+  reference implementation and an executable conformance suite.
+type: software
+authors:
+  - family-names: Zhang
+    given-names: Cirun
+license: Apache-2.0
+version: 0.1.0
+date-released: 2026-10-29
+repository-code: "https://github.com/popcorn8912/oict"
+keywords:
+  - immersive commerce
+  - agentic commerce
+  - transaction integrity
+  - authorization
+  - idempotency
+  - consumer protection
+  - spatial computing

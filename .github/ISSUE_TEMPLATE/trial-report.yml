@@ -1,0 +1,51 @@
+name: Trial report
+description: Tell us how OICT worked against your integration. Trial reports shape the roadmap.
+title: "[trial] <team or project> — <interaction mode>"
+labels: ["trial-report"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for trying OICT. Please only share what you are allowed to share publicly. Never paste credentials, customer data or confidential code.
+  - type: input
+    id: org
+    attributes:
+      label: Organization / team (or "independent")
+    validations: { required: true }
+  - type: dropdown
+    id: stage
+    attributes:
+      label: Stage
+      options: [Evaluation, Trial, Integration, Production]
+    validations: { required: true }
+  - type: dropdown
+    id: mode
+    attributes:
+      label: Interaction mode
+      multiple: true
+      options: [3D scene, AR, VR, Voice, Chat / AI agent, Other]
+  - type: input
+    id: version
+    attributes:
+      label: OICT version / commit
+  - type: textarea
+    id: result
+    attributes:
+      label: Conformance result
+      description: Paste the summary line or attach the JSON report (`--json report.json`).
+      render: text
+  - type: textarea
+    id: found
+    attributes:
+      label: What did OICT catch or miss?
+      description: Failure modes found, false positives, rules that did not fit your case.
+  - type: input
+    id: effort
+    attributes:
+      label: Approximate integration effort (hours)
+  - type: checkboxes
+    id: consent
+    attributes:
+      label: Listing
+      options:
+        - label: You may list us in ADOPTERS.md.

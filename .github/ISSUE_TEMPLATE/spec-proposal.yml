@@ -1,0 +1,28 @@
+name: Spec proposal
+description: Propose a new rule or a change to an existing one.
+title: "[spec] <short description>"
+labels: ["spec"]
+body:
+  - type: textarea
+    id: failure
+    attributes:
+      label: Failure mode
+      description: What can go wrong today? Describe the sequence of events.
+    validations: { required: true }
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Evidence
+      description: Where have you seen this? Public incidents, trial reports, a reproduction.
+  - type: textarea
+    id: rule
+    attributes:
+      label: Proposed rule text
+      description: Use RFC 2119 keywords. Reference existing rule IDs if you change one.
+      render: markdown
+    validations: { required: true }
+  - type: textarea
+    id: test
+    attributes:
+      label: Proposed conformance case
+      description: How would an implementation prove it follows the rule?

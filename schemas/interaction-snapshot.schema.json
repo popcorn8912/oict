@@ -1,0 +1,58 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/popcorn8912/oict/schemas/interaction-snapshot.schema.json",
+  "title": "OICT Interaction Snapshot",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "sessionId",
+    "stateVersion",
+    "sceneObjectId",
+    "sku",
+    "variantId",
+    "variantVersion",
+    "priceVersion",
+    "unitPriceMinor",
+    "currency",
+    "quantity"
+  ],
+  "properties": {
+    "sessionId": {
+      "type": "string"
+    },
+    "stateVersion": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "sceneObjectId": {
+      "type": "string"
+    },
+    "sku": {
+      "type": "string"
+    },
+    "variantId": {
+      "type": "string"
+    },
+    "variantVersion": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "priceVersion": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "unitPriceMinor": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "currency": {
+      "type": "string",
+      "pattern": "^[A-Z]{3}$"
+    },
+    "quantity": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 99
+    }
+  }
+}

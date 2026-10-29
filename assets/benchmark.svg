@@ -1,0 +1,64 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 544" width="1000" height="544" role="img" aria-labelledby="t d">
+  <title id="t">Anomaly-injection benchmark</title>
+  <desc id="d">Share of injected anomalies blocked, per type, over 5000 synthetic flows (seed 42). OICT blocks 100.0% with 0.0% false positives; a naive checkout-only baseline blocks 11.4%.</desc>
+  <defs><linearGradient id="holo" x1="0" x2="1"><stop offset="0" stop-color="#5EE7DF"/><stop offset=".5" stop-color="#B490FF"/><stop offset="1" stop-color="#FF8BD1"/></linearGradient></defs>
+  <style>
+    text { font-family: "Instrument Sans", "Segoe UI", "Helvetica Neue", Arial, sans-serif; font-size: 14px; }
+    .h { font-family: "Unbounded", "Segoe UI", "Helvetica Neue", Arial, sans-serif; font-weight: 700; }
+    .g { transform-box: fill-box; transform-origin: left; animation: grow 1.1s cubic-bezier(.2,.8,.2,1) both; }
+    @keyframes grow { from { transform: scaleX(0) } to { transform: scaleX(1) } }
+    @media (prefers-reduced-motion: reduce) { .g { animation: none } }
+  </style>
+  <rect width="1000" height="544" rx="20" fill="#16122E" stroke="#3A3277"/>
+  <text x="32" y="46" class="h" fill="#ECE9FF" font-size="20">100.0% of injected anomalies blocked</text>
+  <text x="32" y="70" fill="#8F89BD">5,000 synthetic flows · seed 42 · 0.0% false positives on legitimate purchases</text>
+  <g transform="translate(700 40)"><rect width="22" height="10" rx="5" fill="url(#holo)"/><text x="30" y="10" fill="#C9C3F2" font-size="13">OICT</text><rect x="84" y="2" width="22" height="6" rx="3" fill="#6F69A0"/><text x="114" y="10" fill="#C9C3F2" font-size="13">naive baseline (11.4%)</text></g>
+    <text x="314" y="113" text-anchor="end" fill="#C9C3F2">Retry with regenerated key</text>
+  <rect x="330" y="98" width="560" height="12" rx="6" fill="#241E55"/>
+  <rect x="330" y="98" width="560.0" height="12" rx="6" fill="url(#holo)" class="g" style="animation-delay:0.15s"/>
+  <rect x="330" y="114" width="560" height="6" rx="3" fill="#241E55"/>
+  <text x="904" y="109" fill="#ECE9FF" font-size="13">100%</text><text x="904" y="122" fill="#6F69A0" font-size="12">0%</text>
+  <text x="314" y="153" text-anchor="end" fill="#C9C3F2">Retry with same key</text>
+  <rect x="330" y="138" width="560" height="12" rx="6" fill="#241E55"/>
+  <rect x="330" y="138" width="560.0" height="12" rx="6" fill="url(#holo)" class="g" style="animation-delay:0.23s"/>
+  <rect x="330" y="154" width="560" height="6" rx="3" fill="#241E55"/>
+  <text x="904" y="149" fill="#ECE9FF" font-size="13">100%</text><text x="904" y="162" fill="#6F69A0" font-size="12">0%</text>
+  <text x="314" y="193" text-anchor="end" fill="#C9C3F2">Price changed after confirm</text>
+  <rect x="330" y="178" width="560" height="12" rx="6" fill="#241E55"/>
+  <rect x="330" y="178" width="560.0" height="12" rx="6" fill="url(#holo)" class="g" style="animation-delay:0.31s"/>
+  <rect x="330" y="194" width="560" height="6" rx="3" fill="#241E55"/>
+  <text x="904" y="189" fill="#ECE9FF" font-size="13">100%</text><text x="904" y="202" fill="#6F69A0" font-size="12">0%</text>
+  <text x="314" y="233" text-anchor="end" fill="#C9C3F2">Variant switched after confirm</text>
+  <rect x="330" y="218" width="560" height="12" rx="6" fill="#241E55"/>
+  <rect x="330" y="218" width="560.0" height="12" rx="6" fill="url(#holo)" class="g" style="animation-delay:0.39s"/>
+  <rect x="330" y="234" width="560" height="6" rx="3" fill="#241E55"/>
+  <text x="904" y="229" fill="#ECE9FF" font-size="13">100%</text><text x="904" y="242" fill="#6F69A0" font-size="12">0%</text>
+  <text x="314" y="273" text-anchor="end" fill="#C9C3F2">Expired confirmation</text>
+  <rect x="330" y="258" width="560" height="12" rx="6" fill="#241E55"/>
+  <rect x="330" y="258" width="560.0" height="12" rx="6" fill="url(#holo)" class="g" style="animation-delay:0.47s"/>
+  <rect x="330" y="274" width="560" height="6" rx="3" fill="#241E55"/>
+  <text x="904" y="269" fill="#ECE9FF" font-size="13">100%</text><text x="904" y="282" fill="#6F69A0" font-size="12">0%</text>
+  <text x="314" y="313" text-anchor="end" fill="#C9C3F2">Revoked authority</text>
+  <rect x="330" y="298" width="560" height="12" rx="6" fill="#241E55"/>
+  <rect x="330" y="298" width="560.0" height="12" rx="6" fill="url(#holo)" class="g" style="animation-delay:0.55s"/>
+  <rect x="330" y="314" width="560" height="6" rx="3" fill="#241E55"/>
+  <rect x="330" y="314" width="560.0" height="6" rx="3" fill="#6F69A0" class="g" style="animation-delay:0.55s"/>
+  <text x="904" y="309" fill="#ECE9FF" font-size="13">100%</text><text x="904" y="322" fill="#6F69A0" font-size="12">100%</text>
+  <text x="314" y="353" text-anchor="end" fill="#C9C3F2">Agent tries to place order</text>
+  <rect x="330" y="338" width="560" height="12" rx="6" fill="#241E55"/>
+  <rect x="330" y="338" width="560.0" height="12" rx="6" fill="url(#holo)" class="g" style="animation-delay:0.63s"/>
+  <rect x="330" y="354" width="560" height="6" rx="3" fill="#241E55"/>
+  <text x="904" y="349" fill="#ECE9FF" font-size="13">100%</text><text x="904" y="362" fill="#6F69A0" font-size="12">0%</text>
+  <text x="314" y="393" text-anchor="end" fill="#C9C3F2">Teen, no guardian consent</text>
+  <rect x="330" y="378" width="560" height="12" rx="6" fill="#241E55"/>
+  <rect x="330" y="378" width="560.0" height="12" rx="6" fill="url(#holo)" class="g" style="animation-delay:0.71s"/>
+  <rect x="330" y="394" width="560" height="6" rx="3" fill="#241E55"/>
+  <text x="904" y="389" fill="#ECE9FF" font-size="13">100%</text><text x="904" y="402" fill="#6F69A0" font-size="12">0%</text>
+  <text x="314" y="433" text-anchor="end" fill="#C9C3F2">Forged confirmation</text>
+  <rect x="330" y="418" width="560" height="12" rx="6" fill="#241E55"/>
+  <rect x="330" y="418" width="560.0" height="12" rx="6" fill="url(#holo)" class="g" style="animation-delay:0.79s"/>
+  <rect x="330" y="434" width="560" height="6" rx="3" fill="#241E55"/>
+  <text x="904" y="429" fill="#ECE9FF" font-size="13">100%</text><text x="904" y="442" fill="#6F69A0" font-size="12">0%</text>
+  <text x="32" y="484" fill="#6F69A0" font-size="12">Reproduce with npm run bench. Baseline: a checkout-only integration that validates the bearer grant and nothing else.</text>
+  <text x="32" y="502" fill="#6F69A0" font-size="12">Results describe this repository's simulator, not production data.</text>
+</svg>

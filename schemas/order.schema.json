@@ -1,0 +1,55 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/popcorn8912/oict/schemas/order.schema.json",
+  "title": "OICT Order",
+  "type": "object",
+  "required": [
+    "id",
+    "sessionId",
+    "consumerId",
+    "applicationId",
+    "placedBy",
+    "grantId",
+    "snapshot",
+    "snapshotHash",
+    "totalMinor",
+    "currency",
+    "createdAt"
+  ],
+  "properties": {
+    "id": {
+      "type": "string"
+    },
+    "sessionId": {
+      "type": "string"
+    },
+    "consumerId": {
+      "type": "string"
+    },
+    "applicationId": {
+      "type": "string"
+    },
+    "placedBy": {
+      "type": "string"
+    },
+    "grantId": {
+      "type": "string"
+    },
+    "snapshot": {
+      "$ref": "interaction-snapshot.schema.json"
+    },
+    "snapshotHash": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "totalMinor": {
+      "type": "integer"
+    },
+    "currency": {
+      "type": "string"
+    },
+    "createdAt": {
+      "type": "integer"
+    }
+  }
+}

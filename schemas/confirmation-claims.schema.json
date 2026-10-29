@@ -1,0 +1,57 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/popcorn8912/oict/schemas/confirmation-claims.schema.json",
+  "title": "OICT Confirmation Claims",
+  "description": "Payload of a confirmation token (STB-5).",
+  "type": "object",
+  "required": [
+    "v",
+    "sessionId",
+    "consumerId",
+    "snapshotHash",
+    "stateVersion",
+    "totalMinor",
+    "currency",
+    "iat",
+    "exp",
+    "nonce"
+  ],
+  "properties": {
+    "v": {
+      "const": 1
+    },
+    "sessionId": {
+      "type": "string"
+    },
+    "consumerId": {
+      "type": "string"
+    },
+    "snapshotHash": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "stateVersion": {
+      "type": "integer"
+    },
+    "totalMinor": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "currency": {
+      "type": "string"
+    },
+    "guardianConsentRef": {
+      "type": "string"
+    },
+    "iat": {
+      "type": "integer"
+    },
+    "exp": {
+      "type": "integer"
+    },
+    "nonce": {
+      "type": "string",
+      "minLength": 12
+    }
+  }
+}

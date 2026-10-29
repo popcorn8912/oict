@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/popcorn8912/oict/schemas/error.schema.json",
+  "title": "OICT Error Envelope",
+  "type": "object",
+  "required": [
+    "error"
+  ],
+  "properties": {
+    "error": {
+      "type": "object",
+      "required": [
+        "code",
+        "message"
+      ],
+      "properties": {
+        "code": {
+          "enum": [
+            "BAD_REQUEST",
+            "UNKNOWN_PARTICIPANT",
+            "UNKNOWN_GRANT",
+            "UNKNOWN_SESSION",
+            "UNKNOWN_PRODUCT",
+            "GRANT_INACTIVE",
+            "SCOPE_INSUFFICIENT",
+            "DELEGATION_INVALID",
+            "APPLICATION_MISMATCH",
+            "PRINCIPAL_MISMATCH",
+            "AGENT_FORBIDDEN",
+            "IDEMPOTENCY_KEY_REQUIRED",
+            "IDEMPOTENCY_KEY_REUSED",
+            "CONFIRMATION_INVALID",
+            "CONFIRMATION_EXPIRED",
+            "CONFIRMATION_CONSUMED",
+            "STALE_CONFIRMATION",
+            "STALE_STATE",
+            "MINOR_RESTRICTED",
+            "GUARDIAN_CONSENT_REQUIRED",
+            "LIMIT_EXCEEDED",
+            "NOT_FOUND"
+          ]
+        },
+        "message": {
+          "type": "string"
+        }
+      }
+    }
+  }
+}

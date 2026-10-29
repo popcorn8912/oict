@@ -1,0 +1,99 @@
+{
+  "benchmark": "oict-anomaly-injection",
+  "version": "0.1.0",
+  "flows": 5000,
+  "seed": 42,
+  "note": "Synthetic simulation. Baseline = checkout-only integration that validates the bearer grant and nothing else.",
+  "oict": {
+    "per": {
+      "duplicate_new_key": {
+        "injected": 217,
+        "blocked": 217
+      },
+      "duplicate_same_key": {
+        "injected": 211,
+        "blocked": 211
+      },
+      "stale_price": {
+        "injected": 202,
+        "blocked": 202
+      },
+      "stale_variant": {
+        "injected": 222,
+        "blocked": 222
+      },
+      "expired_confirmation": {
+        "injected": 234,
+        "blocked": 234
+      },
+      "revoked_grant": {
+        "injected": 221,
+        "blocked": 221
+      },
+      "agent_overreach": {
+        "injected": 239,
+        "blocked": 239
+      },
+      "teen_without_consent": {
+        "injected": 216,
+        "blocked": 216
+      },
+      "forged_confirmation": {
+        "injected": 223,
+        "blocked": 223
+      }
+    },
+    "injected": 1985,
+    "blocked": 1985,
+    "normal": 3015,
+    "falsePositives": 0,
+    "detectionRate": 1,
+    "falsePositiveRate": 0
+  },
+  "baseline": {
+    "per": {
+      "duplicate_new_key": {
+        "injected": 223,
+        "blocked": 0
+      },
+      "duplicate_same_key": {
+        "injected": 216,
+        "blocked": 0
+      },
+      "stale_price": {
+        "injected": 245,
+        "blocked": 0
+      },
+      "stale_variant": {
+        "injected": 206,
+        "blocked": 0
+      },
+      "expired_confirmation": {
+        "injected": 208,
+        "blocked": 0
+      },
+      "revoked_grant": {
+        "injected": 228,
+        "blocked": 228
+      },
+      "agent_overreach": {
+        "injected": 223,
+        "blocked": 0
+      },
+      "teen_without_consent": {
+        "injected": 211,
+        "blocked": 0
+      },
+      "forged_confirmation": {
+        "injected": 233,
+        "blocked": 0
+      }
+    },
+    "injected": 1993,
+    "blocked": 228,
+    "normal": 3007,
+    "falsePositives": 0,
+    "detectionRate": 0.11440040140491721,
+    "falsePositiveRate": 0
+  }
+}

@@ -1,0 +1,605 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OICT · Open Immersive Commerce Transaction Framework</title>
+<meta name="description" content="An open transaction-integrity layer for real-world purchases inside games, 3D worlds, AR/VR and AI shopping agents. What the shopper saw is what gets ordered.">
+<meta property="og:title" content="OICT · What the shopper saw is what gets ordered">
+<meta property="og:description" content="Open spec, reference implementation and conformance suite for immersive and agentic commerce.">
+<meta name="theme-color" content="#16122E">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M16 3l11 6v14l-11 6-11-6V9z' fill='%23B490FF'/%3E%3Cpath d='M16 3l11 6-11 6-11-6z' fill='%235EE7DF'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Instrument+Sans:wght@400;500;600&family=Unbounded:wght@500;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --night: #16122E;
+    --night-2: #1F1A48;
+    --night-3: #2A2458;
+    --line: #3A3277;
+    --text: #ECE9FF;
+    --soft: #C9C3F2;
+    --muted: #8F89BD;
+    --cyan: #5EE7DF;
+    --violet: #B490FF;
+    --pink: #FF8BD1;
+    --ok: #7CF2B0;
+    --stop: #FF6B8A;
+    --holo: linear-gradient(100deg, var(--cyan), var(--violet) 50%, var(--pink));
+    --display: "Unbounded", "Segoe UI", system-ui, sans-serif;
+    --body: "Instrument Sans", "Segoe UI", system-ui, sans-serif;
+    --mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+    --gutter: clamp(16px, 4vw, 48px);
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0; background: var(--night); color: var(--text);
+    font: 17px/1.6 var(--body);
+    background-image:
+      radial-gradient(1200px 600px at 75% -10%, rgba(180,144,255,.18), transparent 60%),
+      linear-gradient(var(--night), var(--night));
+  }
+  a { color: inherit; }
+  :focus-visible { outline: 2px solid var(--cyan); outline-offset: 3px; border-radius: 6px; }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 0 var(--gutter); }
+
+  /* nav */
+  nav { display: flex; align-items: center; justify-content: space-between; padding: 22px 0; }
+  .logo { display: flex; align-items: center; gap: 10px; font: 700 18px var(--display); letter-spacing: .02em; text-decoration: none; }
+  .logo svg { width: 26px; height: 26px; }
+  nav ul { display: flex; gap: 26px; list-style: none; margin: 0; padding: 0; font-size: 15px; }
+  nav ul a { text-decoration: none; color: var(--soft); }
+  nav ul a:hover { color: var(--text); }
+
+  /* hero */
+  .hero { display: grid; grid-template-columns: 1.05fr 1fr; gap: 40px; align-items: center; padding: 40px 0 24px; }
+  h1 {
+    font: 800 clamp(38px, 5.6vw, 72px)/1.02 var(--display); letter-spacing: -.01em; margin: 0 0 24px;
+    background: linear-gradient(180deg, #fff 30%, #CFC8FF); -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  .lede { font-size: 19px; color: var(--soft); max-width: 34em; margin: 0 0 30px; }
+  .ctas { display: flex; gap: 12px; flex-wrap: wrap; }
+  .btn {
+    display: inline-flex; align-items: center; gap: 8px; padding: 12px 20px; border-radius: 999px;
+    font: 600 15px var(--body); text-decoration: none; border: 1px solid var(--line); color: var(--text); background: var(--night-2);
+    cursor: pointer;
+  }
+  .btn.primary { background: var(--holo); color: #14102A; border: 0; }
+  .btn:hover { border-color: var(--violet); }
+  .facts { display: flex; gap: 28px; margin-top: 34px; color: var(--muted); font-size: 14px; flex-wrap: wrap; }
+  .facts b { display: block; color: var(--text); font: 700 22px var(--display); }
+
+  /* stage */
+  .stage { position: relative; aspect-ratio: 1 / .92; }
+  #holo { width: 100%; height: 100%; display: block; }
+  .tag {
+    position: absolute; left: 50%; bottom: 4%; transform: translateX(-50%);
+    background: rgba(31,26,72,.86); border: 1px solid var(--line); border-radius: 14px; padding: 10px 16px;
+    font: 13px/1.5 var(--mono); color: var(--soft); white-space: nowrap; backdrop-filter: blur(6px);
+    transition: border-color .3s;
+  }
+  .tag .hash { color: var(--muted); }
+  .tag.flash-ok { border-color: var(--ok); }
+  .tag.flash-stop { border-color: var(--stop); }
+
+  /* playground */
+  .play {
+    margin: 8px 0 96px; border: 1px solid var(--line); border-radius: 28px; background: rgba(31,26,72,.55);
+    display: grid; grid-template-columns: 1.1fr 1fr; overflow: hidden;
+  }
+  .play-controls { padding: 32px; border-right: 1px solid var(--line); }
+  .play h2 { font: 700 24px/1.2 var(--display); margin: 0 0 6px; }
+  .play p.sub { margin: 0 0 24px; color: var(--muted); font-size: 15px; }
+  .group { margin-bottom: 22px; }
+  .group-name { font-size: 14px; color: var(--muted); margin: 0 0 10px; }
+  .chips, .actions { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip {
+    border: 1px solid var(--line); background: var(--night); color: var(--soft); border-radius: 12px;
+    padding: 9px 14px; font: 500 14px var(--body); cursor: pointer; display: inline-flex; gap: 8px; align-items: center;
+  }
+  .chip .sw { width: 12px; height: 12px; border-radius: 50%; }
+  .chip[aria-pressed="true"] { border-color: var(--violet); color: var(--text); background: var(--night-3); }
+  .act {
+    border: 1px solid var(--line); background: var(--night); color: var(--text); border-radius: 12px;
+    padding: 10px 14px; font: 500 14px var(--body); cursor: pointer; text-align: left;
+  }
+  .act:hover, .chip:hover { border-color: var(--violet); }
+  .act.buy { background: var(--holo); color: #14102A; border: 0; font-weight: 600; }
+  .act.evil { border-style: dashed; }
+  .tally { display: flex; gap: 20px; margin-top: 26px; padding-top: 20px; border-top: 1px solid var(--line); font-size: 14px; color: var(--muted); }
+  .tally b { font: 700 26px var(--display); display: block; color: var(--text); }
+  .tally .bad b { color: var(--ok); }
+  .tally .bad.hit b { color: var(--stop); }
+  .tally .good b { color: var(--ok); }
+
+  .play-log { padding: 32px; display: flex; flex-direction: column; min-height: 520px; }
+  .log-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 14px; }
+  .log-head h3 { margin: 0; font: 600 16px var(--body); }
+  .log-head button { background: none; border: 0; color: var(--muted); font: 14px var(--body); cursor: pointer; }
+  ol.log { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; overflow-y: auto; max-height: 460px; }
+  .log li {
+    border-left: 3px solid var(--line); padding: 8px 12px; background: rgba(22,18,46,.7); border-radius: 0 10px 10px 0;
+    font-size: 14px; line-height: 1.45; animation: in .35s ease-out;
+  }
+  .log li.ok { border-color: var(--ok); }
+  .log li.stop { border-color: var(--stop); }
+  .log li.info { border-color: var(--violet); }
+  .log .code { font: 500 12.5px var(--mono); color: var(--stop); display: block; margin-top: 2px; }
+  .log li.ok .code { color: var(--ok); }
+  .log .why { color: var(--muted); display: block; font-size: 13px; }
+  .log-empty { color: var(--muted); font-size: 15px; }
+  @keyframes in { from { opacity: 0; transform: translateX(-6px); } }
+
+  /* sections */
+  section.band { padding: 0 0 96px; }
+  .band h2 { font: 700 clamp(26px, 3.2vw, 40px)/1.15 var(--display); margin: 0 0 14px; max-width: 22em; }
+  .band p.intro { color: var(--soft); max-width: 40em; margin: 0 0 36px; }
+  .rules { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0; border-top: 1px solid var(--line); }
+  .rule { padding: 28px 28px 28px 0; border-bottom: 1px solid var(--line); }
+  .rule:nth-child(odd) { border-right: 1px solid var(--line); }
+  .rule:nth-child(even) { padding-left: 28px; }
+  .rule h3 { margin: 0 0 8px; font: 600 19px var(--body); display: flex; gap: 10px; align-items: center; }
+  .rule h3 i { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+  .rule p { margin: 0 0 10px; color: var(--soft); font-size: 16px; }
+  .rule code { font: 12.5px var(--mono); color: var(--muted); }
+  figure { margin: 0; }
+  figure img { width: 100%; height: auto; display: block; border-radius: 22px; }
+  figcaption { color: var(--muted); font-size: 14px; margin-top: 12px; }
+  .two { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; align-items: start; }
+  pre {
+    margin: 0; background: var(--night-2); border: 1px solid var(--line); border-radius: 18px; padding: 22px 24px;
+    font: 14px/1.7 var(--mono); color: var(--soft); overflow-x: auto;
+  }
+  pre .c { color: var(--muted); }
+  pre .p { color: var(--violet); }
+  footer { border-top: 1px solid var(--line); padding: 36px 0 56px; color: var(--muted); font-size: 14px; }
+  footer .wrap { display: flex; justify-content: space-between; gap: 24px; flex-wrap: wrap; }
+  footer p { margin: 0; max-width: 44em; }
+
+  @media (max-width: 900px) {
+    .hero, .play, .two { grid-template-columns: 1fr; }
+    .stage { max-width: 520px; margin: 0 auto; width: 100%; }
+    .play-controls { border-right: 0; border-bottom: 1px solid var(--line); }
+    .rules { grid-template-columns: 1fr; }
+    .rule, .rule:nth-child(even) { padding: 24px 0; border-right: 0; }
+    .rule:nth-child(odd) { border-right: 0; }
+    nav ul { gap: 16px; }
+    nav ul li.hide-sm { display: none; }
+    .play-log { min-height: 0; }
+  }
+  @media (max-width: 480px) {
+    .play-controls, .play-log { padding: 22px 18px; }
+    .tag { font-size: 11.5px; padding: 8px 12px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    .log li { animation: none; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <nav aria-label="Main">
+    <a class="logo" href="#top" aria-label="OICT home">
+      <svg viewBox="0 0 32 32" aria-hidden="true"><path d="M16 3l11 6v14l-11 6-11-6V9z" fill="#B490FF"/><path d="M16 3l11 6-11 6-11-6z" fill="#5EE7DF"/><path d="M16 15v14l11-6V9z" fill="#FF8BD1" opacity=".75"/></svg>
+      OICT
+    </a>
+    <ul>
+      <li><a href="#playground">Playground</a></li>
+      <li class="hide-sm"><a href="#rules">Rules</a></li>
+      <li class="hide-sm"><a href="#proof">Conformance</a></li>
+      <li><a href="https://github.com/popcorn8912/oict">GitHub</a></li>
+    </ul>
+  </nav>
+
+  <header class="hero" id="top">
+    <div>
+      <h1>What the shopper saw is what gets ordered.</h1>
+      <p class="lede">OICT is an open transaction-integrity layer for real-world purchases made inside games, 3D worlds, AR/VR and AI shopping agents. It sits on top of the checkout you already use and makes sure every order matches a fresh, specific confirmation from the person paying.</p>
+      <div class="ctas">
+        <a class="btn primary" href="#playground">Try to break it</a>
+        <a class="btn" href="https://github.com/popcorn8912/oict/tree/main/spec">Read the spec</a>
+      </div>
+      <div class="facts">
+        <span><b>39</b>conformance checks</span>
+        <span><b>0</b>runtime dependencies</span>
+        <span><b>Apache-2.0</b>open source</span>
+      </div>
+    </div>
+    <div class="stage">
+      <canvas id="holo" aria-label="A holographic product on a pedestal. Its color follows the selected variant." role="img"></canvas>
+      <div class="tag" id="tag" aria-live="polite">
+        <span id="tag-line">stateVersion 1 · Violet / M · $42.00</span><br>
+        <span class="hash" id="tag-hash">sha256:…</span>
+      </div>
+    </div>
+  </header>
+
+  <section class="play" id="playground" aria-labelledby="play-title">
+    <div class="play-controls">
+      <h2 id="play-title">Try to break it</h2>
+      <p class="sub">You are the shopper, the merchant, a flaky network and an over-eager AI helper. Every rule runs in your browser with synthetic data.</p>
+
+      <div class="group">
+        <p class="group-name">Pick a variant in the scene</p>
+        <div class="chips" id="variants"></div>
+      </div>
+
+      <div class="group">
+        <p class="group-name">As the shopper</p>
+        <div class="actions">
+          <button class="act buy" data-act="confirm">Tap Buy</button>
+          <button class="act" data-act="order">Send the order</button>
+        </div>
+      </div>
+
+      <div class="group">
+        <p class="group-name">Make something go wrong</p>
+        <div class="actions">
+          <button class="act evil" data-act="price">Merchant raises the price</button>
+          <button class="act evil" data-act="retry">Wi-Fi drops, client retries twice</button>
+          <button class="act evil" data-act="agent">AI helper places the order itself</button>
+          <button class="act evil" data-act="wait">Wait three minutes</button>
+        </div>
+      </div>
+
+      <div class="tally" aria-live="polite">
+        <span class="good"><b id="n-orders">0</b>orders placed</span>
+        <span class="bad"><b id="n-bad">0</b>unintended orders</span>
+        <span><b id="n-blocked">0</b>requests blocked</span>
+      </div>
+    </div>
+
+    <div class="play-log">
+      <div class="log-head">
+        <h3>What OICT decided</h3>
+        <button type="button" id="reset">Start over</button>
+      </div>
+      <ol class="log" id="log" aria-live="polite"></ol>
+      <p class="log-empty" id="log-empty">Pick a variant, tap Buy, then try one of the things that go wrong.</p>
+    </div>
+  </section>
+
+  <section class="band" id="rules" aria-labelledby="rules-title">
+    <h2 id="rules-title">Four rules, enforced where the order is created</h2>
+    <p class="intro">OICT does not replace catalogs, checkout or payment. It adds the rules that existing protocols leave to each team, and turns each one into a test anyone can run.</p>
+    <div class="rules">
+      <article class="rule">
+        <h3><i style="background:var(--cyan)"></i>Who may act, for whom</h3>
+        <p>Platform, developer, application, merchant, consumer and agent form one explicit chain. Authority starts with the consumer, can only narrow when delegated, and disappears everywhere when revoked.</p>
+        <code>MPA-1…6 · DLG-1…5 · REV-1…4</code>
+      </article>
+      <article class="rule">
+        <h3><i style="background:#9FB8FF"></i>Saw it, ordered it</h3>
+        <p>Every change in the scene bumps a state version. A confirmation is bound to the hash of exactly what was on screen, lives two minutes, and is checked again when the order is placed.</p>
+        <code>STB-1…8</code>
+      </article>
+      <article class="rule">
+        <h3><i style="background:var(--violet)"></i>Agents prepare, people decide</h3>
+        <p>An AI helper can draft a cart for the state it actually saw. It can never hold the right to place an order, even with a valid confirmation in hand.</p>
+        <code>AGT-1…5</code>
+      </article>
+      <article class="rule">
+        <h3><i style="background:var(--pink)"></i>Minors protected by default</h3>
+        <p>Under-13 accounts cannot authorize physical purchases. Teen purchases above a merchant-set limit, and any agent acting for a teen, need a guardian consent reference.</p>
+        <code>MIN-1…4</code>
+      </article>
+    </div>
+  </section>
+
+  <section class="band" aria-labelledby="layer-title">
+    <h2 id="layer-title">A thin layer on top of the checkout you already have</h2>
+    <p class="intro">Requests from 3D scenes, AR/VR and AI agents pass through OICT before your commerce protocol creates an order. Good requests pass untouched; stale or overreaching ones stop with a stable error code your interface can explain.</p>
+    <figure>
+      <img src="assets/flow.svg" alt="Diagram: purchase requests from a 3D world, an AR/VR scene and an AI agent pass through the OICT layer before reaching the checkout. Valid requests pass, a stale confirmation and an agent overreach are stopped." width="1280" height="400" loading="lazy">
+    </figure>
+  </section>
+
+  <section class="band" id="proof" aria-labelledby="proof-title">
+    <h2 id="proof-title">Proof you can run, not a promise</h2>
+    <p class="intro">The conformance suite checks any implementation over HTTP. The benchmark injects nine kinds of anomaly into thousands of synthetic purchases and counts what gets through.</p>
+    <div class="two">
+      <figure>
+        <img src="assets/conformance.svg" alt="Terminal showing 39 of 39 OICT conformance cases passing across eight categories." width="920" height="510" loading="lazy">
+        <figcaption>npm run conformance -- --compact</figcaption>
+      </figure>
+      <figure>
+        <img src="assets/benchmark.svg" alt="Bar chart: OICT blocks every injected anomaly type; a naive checkout-only baseline blocks only revoked authority." width="1000" height="544" loading="lazy">
+        <figcaption>npm run bench (5,000 synthetic flows, seed 42)</figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <section class="band" aria-labelledby="start-title">
+    <h2 id="start-title">Run it in under a minute</h2>
+    <p class="intro">Node.js 22.18 or newer runs the TypeScript sources directly. Nothing to install.</p>
+<pre><code><span class="p">$</span> git clone https://github.com/popcorn8912/oict && cd oict
+<span class="p">$</span> npm run demo          <span class="c"># narrated walkthrough</span>
+<span class="p">$</span> npm run conformance   <span class="c"># 39 checks against the reference server</span>
+<span class="p">$</span> npm run bench         <span class="c"># anomaly-injection benchmark</span>
+
+<span class="c"># test your own service</span>
+<span class="p">$</span> node conformance/cli.ts --target https://your-staging-host --json report.json</code></pre>
+  </section>
+</div>
+
+<footer>
+  <div class="wrap">
+    <p>OICT is an independent open-source project, built from public specifications with synthetic data only. It is not affiliated with or endorsed by any retailer, platform or protocol owner. Licensed under Apache-2.0.</p>
+    <p><a href="https://github.com/popcorn8912/oict">github.com/popcorn8912/oict</a></p>
+  </div>
+</footer>
+
+<script>
+(() => {
+  // ───────────────────────── synthetic catalog ─────────────────────────
+  const VARIANTS = [
+    { id: "violet-m", label: "Violet / M", price: 4200, colors: ["#B490FF", "#FF8BD1"] },
+    { id: "violet-l", label: "Violet / L", price: 4200, colors: ["#9C7BFF", "#E58BFF"] },
+    { id: "teal-m",   label: "Teal / M",   price: 3900, colors: ["#5EE7DF", "#7CB8FF"] },
+  ];
+  const fmt = (m) => `$${(m / 100).toFixed(2)}`;
+
+  // ───────────────────────── mini OICT engine ─────────────────────────
+  // Same rules as src/core/engine.ts, trimmed to the shopper's session.
+  const canonical = (v) => v === null || typeof v !== "object"
+    ? JSON.stringify(v)
+    : `{${Object.keys(v).filter(k => v[k] !== undefined).sort().map(k => `${JSON.stringify(k)}:${canonical(v[k])}`).join(",")}}`;
+  async function digest(obj) {
+    const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(canonical(obj)));
+    return "sha256:" + [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, "0")).join("");
+  }
+
+  let s;
+  function fresh() {
+    s = {
+      clock: 0, stateVersion: 1, variant: VARIANTS[0].id,
+      prices: Object.fromEntries(VARIANTS.map(v => [v.id, { minor: v.price, version: 1 }])),
+      confirmation: null, consumedNonces: new Set(), idem: new Map(),
+      orders: [], unintended: 0, blocked: 0, keySeq: 0, lastKey: null,
+    };
+  }
+  const variant = () => VARIANTS.find(v => v.id === s.variant);
+  const snapshot = () => ({
+    sessionId: "ses_demo", stateVersion: s.stateVersion, sceneObjectId: "obj-rack-03",
+    sku: "SYN-HOODIE-01", variantId: s.variant, variantVersion: 1,
+    priceVersion: s.prices[s.variant].version, unitPriceMinor: s.prices[s.variant].minor,
+    currency: "USD", quantity: 1,
+  });
+
+  function block(code) { s.blocked++; return { ok: false, code }; }
+
+  async function placeOrder(key, actor = "app") {
+    if (actor === "agent") return block("AGENT_FORBIDDEN");
+    const prior = s.idem.get(key);
+    const c = s.confirmation;
+    if (prior) {
+      if (prior.nonce !== c?.nonce) return block("IDEMPOTENCY_KEY_REUSED");
+      return { ok: true, replay: true, order: prior.order };
+    }
+    if (!c) return block("CONFIRMATION_INVALID");
+    if (c.exp <= s.clock) return block("CONFIRMATION_EXPIRED");
+    if (s.consumedNonces.has(c.nonce)) return block("CONFIRMATION_CONSUMED");
+    const snap = snapshot();
+    const hash = await digest(snap);
+    if (hash !== c.hash) return block("STALE_CONFIRMATION");
+    const order = { id: "ord_" + Math.random().toString(36).slice(2, 10), total: snap.unitPriceMinor, variant: snap.variantId };
+    s.consumedNonces.add(c.nonce);
+    s.idem.set(key, { nonce: c.nonce, order });
+    s.orders.push(order);
+    return { ok: true, replay: false, order };
+  }
+
+  // ───────────────────────── UI wiring ─────────────────────────
+  const $ = (id) => document.getElementById(id);
+  const logEl = $("log"), tag = $("tag");
+  const WHY = {
+    STALE_CONFIRMATION: "What is on screen changed after you confirmed. The interface asks you to confirm again.",
+    CONFIRMATION_EXPIRED: "Confirmations last two minutes, so a forgotten tap cannot buy something later.",
+    CONFIRMATION_CONSUMED: "This confirmation already bought something. A new request ID does not make it a second purchase.",
+    CONFIRMATION_INVALID: "There is no confirmation to turn into an order yet. Tap Buy first.",
+    AGENT_FORBIDDEN: "Agents can prepare a cart. Only your own confirmation, sent by the app, can place the order.",
+    IDEMPOTENCY_KEY_REUSED: "This request ID was already used for a different purchase.",
+  };
+
+  function log(kind, text, code, why) {
+    $("log-empty").hidden = true;
+    const li = document.createElement("li");
+    li.className = kind;
+    li.innerHTML = `${text}${code ? `<span class="code">${code}</span>` : ""}${why ? `<span class="why">${why}</span>` : ""}`;
+    logEl.prepend(li);
+  }
+  function flash(kind) {
+    tag.classList.remove("flash-ok", "flash-stop");
+    void tag.offsetWidth;
+    tag.classList.add(kind === "ok" ? "flash-ok" : "flash-stop");
+    holo.pulse(kind === "ok" ? "#7CF2B0" : "#FF6B8A");
+    setTimeout(() => tag.classList.remove("flash-ok", "flash-stop"), 1200);
+  }
+  async function render() {
+    const v = variant(), snap = snapshot();
+    const hash = await digest(snap);
+    $("tag-line").textContent = `stateVersion ${s.stateVersion} · ${v.label} · ${fmt(snap.unitPriceMinor)}`;
+    $("tag-hash").textContent = `${hash.slice(0, 19)}…${hash.slice(-6)}`;
+    $("n-orders").textContent = s.orders.length;
+    $("n-bad").textContent = s.unintended;
+    $("n-blocked").textContent = s.blocked;
+    document.querySelectorAll("#variants .chip").forEach(b => {
+      b.setAttribute("aria-pressed", String(b.dataset.v === s.variant));
+      b.querySelector(".price").textContent = fmt(s.prices[b.dataset.v].minor);
+    });
+    $("n-bad").parentElement.classList.toggle("hit", s.unintended > 0);
+    holo.setColors(v.colors);
+  }
+  function outcome(res, label) {
+    if (res.ok && res.replay) {
+      log("ok", `${label}: same request ID, so OICT returns the existing order <b>${res.order.id}</b> instead of buying again.`, "replayed · no new order");
+      flash("ok");
+    } else if (res.ok) {
+      log("ok", `${label}: order <b>${res.order.id}</b> placed for ${fmt(res.order.total)}, exactly what you confirmed.`, "201 · order created");
+      flash("ok");
+    } else {
+      log("stop", `${label}: blocked.`, res.code, WHY[res.code]);
+      flash("stop");
+    }
+  }
+
+  VARIANTS.forEach(v => {
+    const b = document.createElement("button");
+    b.className = "chip"; b.dataset.v = v.id; b.type = "button";
+    b.innerHTML = `<span class="sw" style="background:linear-gradient(135deg,${v.colors[0]},${v.colors[1]})"></span>${v.label} · <span class="price">${fmt(v.price)}</span>`;
+    b.addEventListener("click", async () => {
+      if (s.variant === v.id) return;
+      s.variant = v.id; s.stateVersion++;
+      log("info", `You switched to <b>${v.label}</b>. State version is now ${s.stateVersion}, so the snapshot hash changed.`);
+      await render();
+    });
+    $("variants").append(b);
+  });
+
+  const ACTIONS = {
+    async confirm() {
+      const snap = snapshot();
+      s.confirmation = { hash: await digest(snap), exp: s.clock + 120, nonce: Math.random().toString(36).slice(2) };
+      s.lastKey = `order-${++s.keySeq}`;
+      log("info", `You confirmed <b>${variant().label}</b> at ${fmt(snap.unitPriceMinor)}. The confirmation is bound to this exact snapshot for two minutes.`);
+    },
+    async order() {
+      const key = s.lastKey ?? `order-${++s.keySeq}`;
+      const res = await placeOrder(key);
+      outcome(res, "Order sent");
+    },
+    async price() {
+      const p = s.prices[s.variant];
+      p.minor += 300; p.version++;
+      log("info", `The merchant raised ${variant().label} to <b>${fmt(p.minor)}</b>. Price version is now ${p.version}.`);
+    },
+    async retry() {
+      const key = s.lastKey ?? `order-${++s.keySeq}`;
+      outcome(await placeOrder(key), "Retry 1 (same request ID)");
+      outcome(await placeOrder(`regenerated-${++s.keySeq}`), "Retry 2 (client invented a new request ID)");
+    },
+    async agent() {
+      outcome(await placeOrder(`agent-${++s.keySeq}`, "agent"), "AI helper");
+    },
+    async wait() {
+      s.clock += 180;
+      log("info", "Three minutes pass.");
+    },
+  };
+  document.querySelectorAll("[data-act]").forEach(b =>
+    b.addEventListener("click", async () => { await ACTIONS[b.dataset.act](); await render(); }));
+  $("reset").addEventListener("click", async () => {
+    fresh(); logEl.replaceChildren(); $("log-empty").hidden = false; await render();
+  });
+
+  // ───────────────────────── holographic stage ─────────────────────────
+  const holo = (() => {
+    const cv = $("holo"), ctx = cv.getContext("2d");
+    const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+    let W = 0, H = 0, dpr = 1, t = 0, colors = ["#B490FF", "#FF8BD1"], target = colors.slice(), pulse = null;
+    const motes = Array.from({ length: 70 }, () => ({ a: Math.random() * Math.PI * 2, r: .55 + Math.random() * .5, y: Math.random(), s: .2 + Math.random() * .8 }));
+    function size() {
+      const r = cv.getBoundingClientRect(); dpr = Math.min(devicePixelRatio || 1, 2);
+      W = r.width; H = r.height; cv.width = W * dpr; cv.height = H * dpr; ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    }
+    const mix = (a, b, k) => {
+      const pa = parseInt(a.slice(1), 16), pb = parseInt(b.slice(1), 16);
+      const c = [16, 8, 0].map(sh => Math.round(((pa >> sh) & 255) * (1 - k) + ((pb >> sh) & 255) * k));
+      return "#" + c.map(x => x.toString(16).padStart(2, "0")).join("");
+    };
+    // unit cube vertices, slightly tall like a folded garment box
+    const V = [[-1,-1.15,-1],[1,-1.15,-1],[1,1.15,-1],[-1,1.15,-1],[-1,-1.15,1],[1,-1.15,1],[1,1.15,1],[-1,1.15,1]];
+    const F = [[0,1,2,3],[4,5,6,7],[0,1,5,4],[2,3,7,6],[1,2,6,5],[0,3,7,4]];
+    function draw() {
+      if (!W) size();
+      t += reduce ? 0 : 1 / 60;
+      colors = colors.map((c, i) => mix(c, target[i], .08));
+      ctx.clearRect(0, 0, W, H);
+      const cx = W / 2, cy = H * .44, sc = Math.min(W, H) * .16, bob = Math.sin(t * 1.1) * sc * .08;
+
+      // glow
+      const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, Math.min(W, H) * .55);
+      g.addColorStop(0, colors[0] + "55"); g.addColorStop(1, "#16122E00");
+      ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+
+      // pedestal + orbit dashes
+      const py = H * .76;
+      ctx.save(); ctx.translate(cx, py); ctx.scale(1, .24);
+      ctx.beginPath(); ctx.arc(0, 0, sc * 1.9, 0, Math.PI * 2); ctx.fillStyle = "#241E55"; ctx.fill();
+      ctx.lineWidth = 3; ctx.strokeStyle = colors[0] + "aa"; ctx.stroke();
+      [[2.5, 0.6, "#5EE7DF"], [3.0, -0.4, "#FF8BD1"]].forEach(([r, sp, col]) => {
+        ctx.setLineDash([6, 18]); ctx.lineDashOffset = -t * 60 * sp;
+        ctx.beginPath(); ctx.arc(0, 0, sc * r, 0, Math.PI * 2); ctx.strokeStyle = col + "88"; ctx.lineWidth = 2.5; ctx.stroke();
+      });
+      ctx.restore(); ctx.setLineDash([]);
+
+      // light beam
+      const bg = ctx.createLinearGradient(0, cy, 0, py);
+      bg.addColorStop(0, colors[0] + "00"); bg.addColorStop(1, colors[0] + "40");
+      ctx.fillStyle = bg; ctx.beginPath();
+      ctx.moveTo(cx - sc * 1.2, cy); ctx.lineTo(cx + sc * 1.2, cy); ctx.lineTo(cx + sc * 1.9, py); ctx.lineTo(cx - sc * 1.9, py); ctx.fill();
+
+      // rotating box
+      const ay = t * .55, ax = -.42;
+      const P = V.map(([x, y, z]) => {
+        let X = x * Math.cos(ay) + z * Math.sin(ay), Z = -x * Math.sin(ay) + z * Math.cos(ay);
+        let Y = y * Math.cos(ax) - Z * Math.sin(ax); Z = y * Math.sin(ax) + Z * Math.cos(ax);
+        const k = 5 / (5 + Z);
+        return [cx + X * sc * k, cy + bob + Y * sc * k, Z];
+      });
+      F.map(f => ({ f, z: f.reduce((a, i) => a + P[i][2], 0) / 4 }))
+        .sort((a, b) => b.z - a.z)
+        .forEach(({ f, z }, idx) => {
+          const lg = ctx.createLinearGradient(P[f[0]][0], P[f[0]][1], P[f[2]][0], P[f[2]][1]);
+          lg.addColorStop(0, colors[0]); lg.addColorStop(1, colors[1]);
+          ctx.globalAlpha = .28 + idx * .1;
+          ctx.fillStyle = lg; ctx.beginPath();
+          f.forEach((i, j) => j ? ctx.lineTo(P[i][0], P[i][1]) : ctx.moveTo(P[i][0], P[i][1]));
+          ctx.closePath(); ctx.fill();
+          ctx.globalAlpha = .85; ctx.strokeStyle = "#ECE9FF"; ctx.lineWidth = 1.3; ctx.stroke();
+        });
+      ctx.globalAlpha = 1;
+
+      // scan line
+      const sy = cy + bob + Math.sin(t * 1.6) * sc * 1.2;
+      ctx.fillStyle = "#ECE9FF55"; ctx.fillRect(cx - sc * 1.6, sy, sc * 3.2, 1.5);
+
+      // motes
+      motes.forEach(m => {
+        m.y -= (reduce ? 0 : .0016) * m.s; if (m.y < 0) m.y = 1;
+        const x = cx + Math.cos(m.a + t * .2) * sc * 2.6 * m.r, y = py - (1 - m.y) * H * .6;
+        ctx.globalAlpha = Math.sin(m.y * Math.PI) * .7;
+        ctx.fillStyle = m.s > .6 ? colors[1] : "#ECE9FF";
+        ctx.fillRect(x, y, 2, 2);
+      });
+      ctx.globalAlpha = 1;
+
+      // pulse ring on decisions
+      if (pulse) {
+        const k = (performance.now() - pulse.at) / 900;
+        if (k >= 1) pulse = null;
+        else {
+          ctx.save(); ctx.translate(cx, py); ctx.scale(1, .24);
+          ctx.beginPath(); ctx.arc(0, 0, sc * (1.9 + k * 2.4), 0, Math.PI * 2);
+          ctx.strokeStyle = pulse.color; ctx.globalAlpha = 1 - k; ctx.lineWidth = 8; ctx.stroke(); ctx.restore(); ctx.globalAlpha = 1;
+        }
+      }
+      if (!reduce || pulse) requestAnimationFrame(draw);
+    }
+    addEventListener("resize", () => { size(); if (reduce) requestAnimationFrame(draw); });
+    requestAnimationFrame(draw);
+    return {
+      setColors(c) { target = c.slice(); if (reduce) { colors = c.slice(); requestAnimationFrame(draw); } },
+      pulse(color) { pulse = { color, at: performance.now() }; if (reduce) requestAnimationFrame(draw); },
+    };
+  })();
+
+  fresh();
+  render();
+})();
+</script>
+</body>
+</html>

@@ -204,7 +204,7 @@ interface Pending {
 
 export class Connection implements Queryable {
   private socket!: net.Socket;
-  private buf = Buffer.alloc(0);
+  private buf: Buffer = Buffer.alloc(0);
   private queue: { text: string; values: unknown[]; pending: Pending }[] = [];
   private current?: Pending;
   private ready = false;

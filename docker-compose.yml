@@ -1,15 +1,44 @@
+# Two OICT instances sharing one PostgreSQL database, plus a conformance run.
+#   docker compose up --build
+x-oict: &oict
+  build: .
+  environment: &oict-env
+    OICT_DATABASE_URL: postgres://oict:oict@postgres:5432/oict
+    # Every instance must sign confirmations with the same key. Replace in any real deployment.
+    OICT_SECRET: 9f2c4e6a8b0d1f3e5a7c9b1d3f5e7a9c0b2d4f6e8a1c3e5b7d9f0a2c4e6b8d1f
+    OICT_TEST_HOOKS: "1"
+  depends_on:
+    postgres: { condition: service_healthy }
+  healthcheck:
+    test: ["CMD", "wget", "-qO-", "http://localhost:8787/healthz"]
+    interval: 3s
+    retries: 20
+
 services:
-  oict:
-    build: .
-    ports: ["8787:8787"]
+  postgres:
+    image: postgres:16-alpine
     environment:
-      OICT_TEST_HOOKS: "1"
+      POSTGRES_USER: oict
+      POSTGRES_PASSWORD: oict
+      POSTGRES_DB: oict
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost:8787/healthz"]
-      interval: 5s
-      retries: 5
+      test: ["CMD-SHELL", "pg_isready -U oict"]
+      interval: 2s
+      retries: 30
+
+  oict-1:
+    <<: *oict
+    environment: { <<: *oict-env, OICT_INSTANCE_ID: oict-1 }
+    ports: ["8787:8787"]
+
+  oict-2:
+    <<: *oict
+    environment: { <<: *oict-env, OICT_INSTANCE_ID: oict-2 }
+    ports: ["8788:8787"]
+
   conformance:
     build: .
     depends_on:
-      oict: { condition: service_healthy }
-    command: ["node", "conformance/cli.ts", "--target", "http://oict:8787"]
+      oict-1: { condition: service_healthy }
+      oict-2: { condition: service_healthy }
+    command: ["node", "conformance/cli.ts", "--target", "http://oict-1:8787", "--compact"]

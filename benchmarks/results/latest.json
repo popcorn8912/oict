@@ -1,6 +1,6 @@
 {
   "benchmark": "oict-anomaly-injection",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "flows": 5000,
   "seed": 42,
   "note": "Synthetic simulation. Baseline = checkout-only integration that validates the bearer grant and nothing else.",

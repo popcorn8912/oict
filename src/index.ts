@@ -6,3 +6,6 @@ export { SYNTHETIC_CATALOG } from "./core/fixtures.ts";
 export { isAgentResponseCurrent, bindAgentResponse } from "./core/agent-binding.ts";
 export type { BoundAgentResponse, SelectionView } from "./core/agent-binding.ts";
 export { createServer } from "./server/http.ts";
+export { MemoryStore } from "./store/memory.ts";
+export { PostgresStore } from "./store/postgres/store.ts";
+export type { Store, CommitOrderInput, CommitOrderResult } from "./store/store.ts";

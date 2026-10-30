@@ -4,7 +4,7 @@ All bodies are JSON. Errors follow the [error envelope](../spec/05-idempotency-a
 
 | Method | Path | Grant scope | Purpose | Rules |
 |---|---|---|---|---|
-| `GET` | `/healthz` | — | Liveness and version | — |
+| `GET` | `/healthz` | — | Liveness, version, store (`memory` / `postgres`) and instance id | — |
 | `GET` | `/v1/catalog` | — | Synthetic catalog | — |
 | `POST` | `/v1/participants` | — | Register a platform, developer, application, consumer or agent | MPA-6 |
 | `POST` | `/v1/grants` | — | Issue a root or delegated grant | MPA-5, DLG-1..5, AGT-1, AGT-5, MIN-1 |
@@ -16,6 +16,8 @@ All bodies are JSON. Errors follow the [error envelope](../spec/05-idempotency-a
 | `POST` | `/v1/confirmations` | — | Consumer confirms a snapshot hash | STB-3..6, MIN-2 |
 | `POST` | `/v1/orders` | `order:place` | Exchange a confirmation for an order; needs `Idempotency-Key` | IDM-1..4, STB-7, STB-8 |
 | `GET` | `/v1/orders/:id` | `order:read` | Read an order | — |
+
+Every response carries `X-OICT-Version` and `X-OICT-Instance`. Configuration and multi-instance operation: [deployment.md](deployment.md).
 
 ### Fixture hooks (conformance only)
 

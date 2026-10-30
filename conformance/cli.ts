@@ -52,7 +52,7 @@ async function main(): Promise<number> {
   const client = new Client(target);
 
   console.log("");
-  console.log(`  ${magenta("◆")} ${bold("OICT conformance")} ${dim("v0.1.0")}`);
+  console.log(`  ${magenta("◆")} ${bold("OICT conformance")} ${dim("v0.2.0")}`);
   console.log(`  ${dim("target")} ${cyan(target)}  ${dim("cases")} ${cases.length}`);
 
   const health = await client.get("/healthz").catch(() => null);
@@ -114,7 +114,7 @@ async function main(): Promise<number> {
   if (jsonOut) {
     writeFileSync(
       jsonOut,
-      JSON.stringify({ suite: "oict-conformance", version: "0.1.0", target, passed, failed, durationMs: total, outcomes }, null, 2),
+      JSON.stringify({ suite: "oict-conformance", version: "0.2.0", target, passed, failed, durationMs: total, outcomes }, null, 2),
     );
     console.log(dim(`  report written to ${jsonOut}\n`));
   }

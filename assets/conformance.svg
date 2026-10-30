@@ -19,7 +19,7 @@
     <text x="32" y="96" fill="#B490FF">$</text>
   <clipPath id="typed"><rect class="typed" x="52" y="76" height="28" width="0"/></clipPath>
   <text x="52" y="96" fill="#ECE9FF" clip-path="url(#typed)">npm run conformance -- --compact</text>
-  <g class="l0"><text x="32" y="140"><tspan fill="#B490FF">◆</tspan><tspan fill="#ECE9FF" font-weight="700"> OICT conformance</tspan><tspan fill="#6F69A0"> v0.1.0</tspan></text><text x="32" y="164" fill="#6F69A0">target <tspan fill="#5EE7DF">http://127.0.0.1:8787</tspan>  cases 39</text></g>
+  <g class="l0"><text x="32" y="140"><tspan fill="#B490FF">◆</tspan><tspan fill="#ECE9FF" font-weight="700"> OICT conformance</tspan><tspan fill="#6F69A0"> v0.2.0</tspan></text><text x="32" y="164" fill="#6F69A0">target <tspan fill="#5EE7DF">http://127.0.0.1:8787</tspan>  cases 39</text></g>
   <g class="r0"><text x="32" y="204"><tspan fill="#7CF2B0">✔</tspan><tspan fill="#ECE9FF"> Multi-party authorization</tspan></text><text x="560" y="204" fill="#ECE9FF" text-anchor="end">6/6</text><text x="584" y="204" fill="#7CF2B0" letter-spacing="1">■■■■■■</text><text x="760" y="204" fill="#6F69A0">129ms</text></g>
   <g class="r1"><text x="32" y="234"><tspan fill="#7CF2B0">✔</tspan><tspan fill="#ECE9FF"> Delegation</tspan></text><text x="560" y="234" fill="#ECE9FF" text-anchor="end">5/5</text><text x="584" y="234" fill="#7CF2B0" letter-spacing="1">■■■■■</text><text x="760" y="234" fill="#6F69A0">75ms</text></g>
   <g class="r2"><text x="32" y="264"><tspan fill="#7CF2B0">✔</tspan><tspan fill="#ECE9FF"> Revocation &amp; expiry</tspan></text><text x="560" y="264" fill="#ECE9FF" text-anchor="end">4/4</text><text x="584" y="264" fill="#7CF2B0" letter-spacing="1">■■■■</text><text x="760" y="264" fill="#6F69A0">52ms</text></g>

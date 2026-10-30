@@ -2,7 +2,9 @@
 
 **Token secrets.** Confirmation tokens are only as strong as the key that signs them. Deployments **MUST** keep signing keys in a managed secret store, **SHOULD** rotate them, and **SHOULD** use asymmetric signatures (JWS) when tokens must be verified by a party other than the issuer.
 
-**Replay.** Single-use nonces (IDM-4) and short expiry (STB-6) limit replay. The nonce store **MUST** be shared by every instance that can place orders; otherwise a replay can succeed on a different node.
+**Replay.** Single-use nonces (IDM-4) and short expiry (STB-6) limit replay. The nonce store **MUST** be shared by every instance that can place orders; otherwise a replay can succeed on a different node. The reference server meets this with a primary key in PostgreSQL; see [docs/deployment.md](../docs/deployment.md).
+
+**Check-then-write races.** A service **MUST** re-verify the confirmed state and record the order in one atomic step (STB-7). Checking first and writing later, without a lock or an equivalent database constraint, lets a price change land in between.
 
 **Clock skew.** Expiry checks depend on clocks. Services **SHOULD** use a monotonic, NTP-disciplined clock and **MAY** allow a small skew (≤ 5 s).
 
@@ -14,4 +16,4 @@
 
 **Denial of service.** Idempotency and nonce stores grow with traffic. Records **SHOULD** expire after their retention window, and request bodies **SHOULD** be size-limited (the reference server accepts at most 64 KiB).
 
-**Reference server scope.** The reference server keeps all state in memory, uses a per-process secret, and identifies grants with a simplified header. It is a correctness reference and a conformance target, **not** a production service.
+**Reference server scope.** The reference server identifies grants with a simplified header and, in its default mode, keeps state in memory with a per-process secret. With `OICT_DATABASE_URL` and a shared `OICT_SECRET` it runs as many instances on PostgreSQL. It remains a correctness reference and a conformance target, **not** a production service.

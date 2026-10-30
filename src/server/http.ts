@@ -1,13 +1,18 @@
+import { randomBytes } from "node:crypto";
 import http from "node:http";
 import { digest } from "../core/crypto.ts";
 import { OictEngine, type EngineOptions } from "../core/engine.ts";
 import { SYNTHETIC_CATALOG } from "../core/fixtures.ts";
 import { OictError } from "../core/types.ts";
+import { MemoryStore } from "../store/memory.ts";
 
 export interface ServerOptions {
   /** Expose /v1/_test/* fixture endpoints used by the conformance suite. */
   testHooks?: boolean;
+  /** Engine settings. `store` defaults to a MemoryStore seeded with the synthetic catalog. */
   engine?: Omit<EngineOptions, "now" | "catalog">;
+  /** Reported in /healthz and the X-OICT-Instance header; useful behind a load balancer. */
+  instanceId?: string;
 }
 
 type Json = Record<string, unknown>;
@@ -30,7 +35,7 @@ interface Route {
   handler: Handler;
 }
 
-const VERSION = "0.1.0";
+export const VERSION = "0.2.0";
 
 function route(method: string, path: string, handler: Handler): Route {
   const keys: string[] = [];
@@ -52,13 +57,13 @@ function str(body: Json, key: string): string {
 /** Create the OICT reference HTTP server. Call `.listen(port)` to start it. */
 export function createServer(opts: ServerOptions = {}): http.Server {
   let clockOffset = 0;
-  const makeEngine = () =>
-    new OictEngine({ ...opts.engine, now: () => Date.now() + clockOffset, catalog: SYNTHETIC_CATALOG });
-  let engine = makeEngine();
+  const store = opts.engine?.store ?? new MemoryStore(SYNTHETIC_CATALOG);
+  const engine = new OictEngine({ ...opts.engine, store, now: () => Date.now() + clockOffset });
+  const instanceId = opts.instanceId ?? `oict-${randomBytes(3).toString("hex")}`;
 
   const routes: Route[] = [
-    route("GET", "/healthz", () => ({ status: "ok", spec: "OICT", version: VERSION })),
-    route("GET", "/v1/catalog", ({ engine }) => ({ items: engine.listCatalog() })),
+    route("GET", "/healthz", () => ({ status: "ok", spec: "OICT", version: VERSION, store: store.kind, instance: instanceId })),
+    route("GET", "/v1/catalog", async ({ engine }) => ({ items: await engine.listCatalog() })),
 
     route("POST", "/v1/participants", ({ engine, body, setStatus }) => {
       setStatus(201);
@@ -95,15 +100,15 @@ export function createServer(opts: ServerOptions = {}): http.Server {
       return engine.createSession(str(body, "consumerId"), str(body, "applicationId"));
     }),
 
-    route("GET", "/v1/sessions/:id", ({ engine, params }) => {
-      const session = engine.session(params.id!);
+    route("GET", "/v1/sessions/:id", async ({ engine, params }) => {
+      const session = await engine.session(params.id!);
       if (!session.selection) return { session, snapshot: null, snapshotHash: null };
-      const snapshot = engine.snapshot(session);
+      const snapshot = await engine.snapshot(session);
       return { session, snapshot, snapshotHash: digest(snapshot) };
     }),
 
-    route("POST", "/v1/sessions/:id/selection", ({ engine, params, body }) => {
-      const { session, snapshot, snapshotHash } = engine.updateSelection(params.id!, {
+    route("POST", "/v1/sessions/:id/selection", async ({ engine, params, body }) => {
+      const { session, snapshot, snapshotHash } = await engine.updateSelection(params.id!, {
         sceneObjectId: str(body, "sceneObjectId"),
         sku: str(body, "sku"),
         variantId: str(body, "variantId"),
@@ -117,20 +122,20 @@ export function createServer(opts: ServerOptions = {}): http.Server {
       return engine.prepareCart(grantId, str(body, "sessionId"), Number(body.stateVersion));
     }),
 
-    route("POST", "/v1/confirmations", ({ engine, body, setStatus }) => {
-      setStatus(201);
-      const { token, claims } = engine.confirm({
+    route("POST", "/v1/confirmations", async ({ engine, body, setStatus }) => {
+      const { token, claims } = await engine.confirm({
         sessionId: str(body, "sessionId"),
         consumerId: str(body, "consumerId"),
         snapshotHash: str(body, "snapshotHash"),
         guardianConsentRef: body.guardianConsentRef as string | undefined,
       });
+      setStatus(201);
       return { confirmationToken: token, expiresAt: claims.exp, totalMinor: claims.totalMinor, currency: claims.currency };
     }),
 
-    route("POST", "/v1/orders", ({ engine, body, grantId, headers, setHeader, setStatus }) => {
+    route("POST", "/v1/orders", async ({ engine, body, grantId, headers, setHeader, setStatus }) => {
       const key = headers["idempotency-key"];
-      const { order, replayed } = engine.placeOrder({
+      const { order, replayed } = await engine.placeOrder({
         grantId: grantId ?? "",
         idempotencyKey: Array.isArray(key) ? key[0] : key,
         sessionId: str(body, "sessionId"),
@@ -146,9 +151,9 @@ export function createServer(opts: ServerOptions = {}): http.Server {
 
   if (opts.testHooks) {
     routes.push(
-      route("POST", "/v1/_test/reset", () => {
+      route("POST", "/v1/_test/reset", async () => {
         clockOffset = 0;
-        engine = makeEngine();
+        await store.reset(SYNTHETIC_CATALOG);
         return { reset: true };
       }),
       route("POST", "/v1/_test/clock", ({ body }) => {
@@ -167,8 +172,9 @@ export function createServer(opts: ServerOptions = {}): http.Server {
         "content-type": "application/json; charset=utf-8",
         "access-control-allow-origin": "*",
         "access-control-allow-headers": "authorization, content-type, idempotency-key",
-        "access-control-expose-headers": "oict-idempotent-replay",
+        "access-control-expose-headers": "oict-idempotent-replay, x-oict-instance",
         "x-oict-version": VERSION,
+        "x-oict-instance": instanceId,
       });
       res.end(JSON.stringify(payload));
     };

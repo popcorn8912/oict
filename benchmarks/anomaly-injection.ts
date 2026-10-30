@@ -70,49 +70,55 @@ interface FlowResult {
 }
 
 interface Target {
-  run(anomaly: Anomaly | null, rnd: () => number): FlowResult;
+  run(anomaly: Anomaly | null, rnd: () => number): FlowResult | Promise<FlowResult>;
 }
 
 // ─────────────────────────────── OICT target ───────────────────────────────
 
 function oictTarget(): Target {
   return {
-    run(anomaly, rnd) {
+    async run(anomaly, rnd) {
       let t = 1_700_000_000_000;
       const e = new OictEngine({ catalog: SYNTHETIC_CATALOG, now: () => t });
       const teen = anomaly === "teen_without_consent";
       const age: AgeBand = teen ? "13-17" : anomaly === "agent_overreach" ? "adult" : rnd() < 0.2 ? "13-17" : "adult";
-      e.registerParticipant({ id: "plat", kind: "platform" });
-      e.registerParticipant({ id: "dev", kind: "developer" });
-      e.registerParticipant({ id: "app", kind: "application", platformId: "plat", developerId: "dev" });
-      e.registerParticipant({ id: "c", kind: "consumer", ageBand: age });
-      e.registerParticipant({ id: "agent", kind: "agent" });
-      const grant = e.issueGrant({ issuer: "c", subject: "app", application: "app", scopes: ALL, ttlSeconds: 3600 });
-      const s = e.createSession("c", "app");
+      await e.registerParticipant({ id: "plat", kind: "platform" });
+      await e.registerParticipant({ id: "dev", kind: "developer" });
+      await e.registerParticipant({ id: "app", kind: "application", platformId: "plat", developerId: "dev" });
+      await e.registerParticipant({ id: "c", kind: "consumer", ageBand: age });
+      await e.registerParticipant({ id: "agent", kind: "agent" });
+      const grant = await e.issueGrant({ issuer: "c", subject: "app", application: "app", scopes: ALL, ttlSeconds: 3600 });
+      const s = await e.createSession("c", "app");
       // Legit teen flows pick an item under the limit; the injected teen anomaly picks one above it.
       const pick = teen ? ["SYN-SNEAKER-07", "white-9"] : age === "13-17" ? ["SYN-LAMP-03", "std"] : ["SYN-HOODIE-01", "violet-m"];
-      const sel = e.updateSelection(s.id, { sceneObjectId: "o1", sku: pick[0]!, variantId: pick[1]!, quantity: 1 });
+      const sel = await e.updateSelection(s.id, { sceneObjectId: "o1", sku: pick[0]!, variantId: pick[1]!, quantity: 1 });
 
-      const tryDo = (fn: () => void) => {
+      const orderIds = new Set<string>();
+      const attempt = async <T>(fn: () => Promise<T>): Promise<T | undefined> => {
         try {
-          fn();
+          return await fn();
         } catch (err) {
           if (!(err instanceof OictError)) throw err;
+          return undefined;
         }
       };
+      const place = async (grantId: string, key: string, token: string) => {
+        const r = await attempt(() => e.placeOrder({ grantId, idempotencyKey: key, sessionId: s.id, confirmationToken: token }));
+        if (r) orderIds.add(r.order.id);
+      };
 
-      let token = "";
-      tryDo(() => (token = e.confirm({ sessionId: s.id, consumerId: "c", snapshotHash: sel.snapshotHash }).token));
-      if (!token) return { orders: e.orders.size, intended: 0 };
+      const confirmed = await attempt(() => e.confirm({ sessionId: s.id, consumerId: "c", snapshotHash: sel.snapshotHash }));
+      if (!confirmed) return { orders: 0, intended: 0 };
+      let token = confirmed.token;
 
       let grantId = grant.id;
-      if (anomaly === "stale_price") e.setPrice(pick[0]!, pick[1]!, 4999);
-      if (anomaly === "stale_variant") e.updateSelection(s.id, { sceneObjectId: "o1", sku: "SYN-HOODIE-01", variantId: "teal-m", quantity: 1 });
+      if (anomaly === "stale_price") await e.setPrice(pick[0]!, pick[1]!, 4999);
+      if (anomaly === "stale_variant") await e.updateSelection(s.id, { sceneObjectId: "o1", sku: "SYN-HOODIE-01", variantId: "teal-m", quantity: 1 });
       if (anomaly === "expired_confirmation") t += 10 * 60 * 1000;
-      if (anomaly === "revoked_grant") e.revokeGrant(grant.id, "c");
+      if (anomaly === "revoked_grant") await e.revokeGrant(grant.id, "c");
       if (anomaly === "agent_overreach") {
         // The best an agent can obtain is cart:write; it then tries to order anyway.
-        grantId = e.issueGrant({ issuer: "c", subject: "agent", application: "app", scopes: ["cart:write"], ttlSeconds: 60 }).id;
+        grantId = (await e.issueGrant({ issuer: "c", subject: "agent", application: "app", scopes: ["cart:write"], ttlSeconds: 60 })).id;
       }
       if (anomaly === "forged_confirmation") {
         const [h, b, m] = token.split(".");
@@ -122,14 +128,10 @@ function oictTarget(): Target {
       }
 
       const key1 = `k-${Math.floor(rnd() * 1e12)}`;
-      tryDo(() => e.placeOrder({ grantId, idempotencyKey: key1, sessionId: s.id, confirmationToken: token }));
-      if (anomaly === "duplicate_same_key") {
-        tryDo(() => e.placeOrder({ grantId, idempotencyKey: key1, sessionId: s.id, confirmationToken: token }));
-      }
-      if (anomaly === "duplicate_new_key") {
-        tryDo(() => e.placeOrder({ grantId, idempotencyKey: `k-${Math.floor(rnd() * 1e12)}-retry`, sessionId: s.id, confirmationToken: token }));
-      }
-      return { orders: e.orders.size, intended: intendedOrders(anomaly) };
+      await place(grantId, key1, token);
+      if (anomaly === "duplicate_same_key") await place(grantId, key1, token);
+      if (anomaly === "duplicate_new_key") await place(grantId, `k-${Math.floor(rnd() * 1e12)}-retry`, token);
+      return { orders: orderIds.size, intended: intendedOrders(anomaly) };
     },
   };
 }
@@ -181,14 +183,14 @@ interface Tally {
   blocked: number;
 }
 
-function runAll(target: Target, seed: number) {
+async function runAll(target: Target, seed: number) {
   const rnd = prng(seed);
   const per: Record<string, Tally> = Object.fromEntries(ANOMALIES.map((a) => [a, { injected: 0, blocked: 0 }]));
   let normal = 0;
   let falsePositives = 0;
   for (let i = 0; i < FLOWS; i++) {
     const anomaly: Anomaly | null = rnd() < 0.4 ? ANOMALIES[Math.floor(rnd() * ANOMALIES.length)]! : null;
-    const r = target.run(anomaly, rnd);
+    const r = await target.run(anomaly, rnd);
     if (anomaly === null) {
       normal += 1;
       if (r.orders !== 1) falsePositives += 1;
@@ -203,8 +205,8 @@ function runAll(target: Target, seed: number) {
 }
 
 const t0 = performance.now();
-const oict = runAll(oictTarget(), SEED);
-const base = runAll(baselineTarget(), SEED);
+const oict = await runAll(oictTarget(), SEED);
+const base = await runAll(baselineTarget(), SEED);
 const ms = Math.round(performance.now() - t0);
 
 const tty = process.stdout.isTTY && !process.env.NO_COLOR;
@@ -227,7 +229,7 @@ console.log(`  ${"false-positive rate".padEnd(24)}${String(oict.normal).padStart
 mkdirSync(OUT, { recursive: true });
 const result = {
   benchmark: "oict-anomaly-injection",
-  version: "0.1.0",
+  version: "0.2.0",
   flows: FLOWS,
   seed: SEED,
   note: "Synthetic simulation. Baseline = checkout-only integration that validates the bearer grant and nothing else.",

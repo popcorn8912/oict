@@ -15,7 +15,13 @@
 - [x] Reproducible anomaly-injection benchmark
 - [x] Interactive browser demo of state binding
 
-## Next — v0.2
+## Done — v0.2
+
+- [x] PostgreSQL store with database-enforced idempotency, single-use confirmations and commit-time state checks
+- [x] Multi-instance test suite and cluster load benchmark
+- [x] Safe concurrent migrations; zero-dependency PostgreSQL driver
+
+## Next — v0.3
 
 - [ ] Conformance suite to ≥ 50 cases (multi-item carts, quantity changes, partial revocation)
 - [ ] Multi-item cart snapshots
@@ -28,4 +34,3 @@
 - [ ] Game-engine (C#) sample client
 - [ ] Voice and AR-panel interaction profiles
 - [ ] Versioned adapter profiles for open checkout protocols
-- [ ] Persistent storage backends for the reference server

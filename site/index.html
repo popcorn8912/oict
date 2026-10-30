@@ -312,6 +312,15 @@
     </div>
   </section>
 
+  <section class="band" aria-labelledby="scale-title">
+    <h2 id="scale-title">Many instances, one source of truth</h2>
+    <p class="intro">Run any number of OICT instances on one PostgreSQL database. Primary keys, row locks and single-statement updates enforce the duplicate-purchase and state-binding rules, so a retry that lands on a different instance is still refused.</p>
+    <figure>
+      <img src="assets/cluster.svg" alt="Three OICT instances share one PostgreSQL database. 600 purchases sent as retry storms to random instances produced 600 orders and no duplicates." width="1280" height="440" loading="lazy">
+      <figcaption>npm run bench:cluster (3 instances, 40 concurrent shoppers, every order sent four times)</figcaption>
+    </figure>
+  </section>
+
   <section class="band" aria-labelledby="start-title">
     <h2 id="start-title">Run it in under a minute</h2>
     <p class="intro">Node.js 22.18 or newer runs the TypeScript sources directly. Nothing to install.</p>

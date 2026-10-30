@@ -1,7 +1,7 @@
 {
   "name": "oict",
-  "version": "0.1.0",
-  "description": "Open Immersive Commerce Transaction Framework: a transaction-integrity layer for real-world purchases inside games, 3D worlds, AR/VR and AI shopping agents.",
+  "version": "0.2.0",
+  "description": "Open Immersive Commerce Transaction Framework: a transaction-integrity layer for real-world purchases inside games, 3D worlds, AR/VR and AI shopping agents. Runs in memory or on PostgreSQL across many instances.",
   "type": "module",
   "license": "Apache-2.0",
   "author": "Cirun Zhang",
@@ -20,8 +20,10 @@
     "start": "node src/server/main.ts",
     "dev": "OICT_TEST_HOOKS=1 node --watch src/server/main.ts",
     "test": "node --test \"test/**/*.test.ts\"",
+    "test:cluster": "node --test test/multi-instance.test.ts",
     "conformance": "node conformance/cli.ts --spawn",
     "bench": "node benchmarks/anomaly-injection.ts",
+    "bench:cluster": "node benchmarks/cluster.ts",
     "demo": "node examples/walkthrough.ts",
     "typecheck": "tsc --noEmit",
     "check": "npm test && npm run conformance && npm run bench"
@@ -35,7 +37,9 @@
     "conformance",
     "spatial-computing",
     "ai-agents",
-    "consumer-protection"
+    "consumer-protection",
+    "postgresql",
+    "distributed-systems"
   ],
   "devDependencies": {
     "@types/node": "^22.10.0",

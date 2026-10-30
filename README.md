@@ -7,6 +7,7 @@
   <img alt="Conformance 39/39" src="https://img.shields.io/badge/conformance-39%2F39-7CF2B0?style=flat-square&labelColor=1F1A48">
   <img alt="Anomaly detection 100% in benchmark" src="https://img.shields.io/badge/anomaly%20detection-100%25%20(sim)-B490FF?style=flat-square&labelColor=1F1A48">
   <img alt="Zero runtime dependencies" src="https://img.shields.io/badge/runtime%20deps-0-5EE7DF?style=flat-square&labelColor=1F1A48">
+  <img alt="PostgreSQL, multi-instance" src="https://img.shields.io/badge/PostgreSQL-multi--instance-9FB8FF?style=flat-square&labelColor=1F1A48">
   <img alt="Node 22.18+" src="https://img.shields.io/badge/node-%E2%89%A522.18-5EE7DF?style=flat-square&labelColor=1F1A48">
   <a href="LICENSE"><img alt="Apache-2.0" src="https://img.shields.io/badge/license-Apache--2.0-FF8BD1?style=flat-square&labelColor=1F1A48"></a>
 </p>
@@ -90,6 +91,31 @@ node conformance/cli.ts --target https://your-host --json report.json   # agains
 
 `npm run bench` replays 5,000 seeded, synthetic purchase flows with nine kinds of injected anomaly against OICT and against a naive checkout-only integration. Full numbers: [`benchmarks/results/latest.md`](benchmarks/results/latest.md). These are simulator results that show the rules work as specified; they are not production measurements.
 
+## Scales out on PostgreSQL
+
+<p align="center">
+  <img src="assets/cluster.svg" alt="Three OICT instances share one PostgreSQL database. Shoppers send every order as a retry storm to random instances; the database refuses every duplicate. 600 purchases produced 600 orders and 0 duplicates." width="100%">
+</p>
+
+Run one instance in memory for development, or **any number of instances on one PostgreSQL database** for anything real. Every guarantee that protects money is enforced by the database, not by process memory:
+
+| Guarantee | How |
+|---|---|
+| A retried request returns the original order (IDM-2) | Primary key on `(grant, Idempotency-Key)`; a concurrent duplicate waits, then replays the winner |
+| One confirmation buys once, whatever key the client invents (IDM-4) | Primary key on the confirmation nonce, claimed inside the order transaction |
+| A price change between "check" and "write" cannot slip through (STB-7) | Session row `FOR UPDATE`, variant row `FOR SHARE`, versions re-compared before the insert |
+| Concurrent scene changes never lose a version (STB-1) | Single-statement `state_version = state_version + 1 … RETURNING` |
+| A revocation is enforced everywhere immediately (REV-1/2) | Grant chain read with one recursive query on every request |
+
+`npm run test:cluster` starts three server processes on a fresh database and attacks them: 25 rounds of 40-request retry storms, 60 concurrent scene changes, revocations and price changes issued on one instance and tested on another. `npm run bench:cluster` then pushes **600 purchases from 40 concurrent shoppers** through three instances, sending every order as a 4-request retry storm. The run ended with **600 orders and 0 duplicates** after 1,437 retries were refused ([results](benchmarks/results/cluster-latest.md)). To show the tests have teeth: making the nonce non-unique, or computing the next state version in application code, makes them fail.
+
+Schema migrations run on start under an advisory lock, so a fleet can roll out at once. The runtime still has zero dependencies, because it includes a small PostgreSQL driver (SCRAM-SHA-256, TLS, pooling). Configuration: [docs/deployment.md](docs/deployment.md).
+
+```bash
+export OICT_DATABASE_URL=postgres://oict:oict@localhost:5432/oict OICT_SECRET=$(openssl rand -hex 32)
+npm start                      # or: docker compose up --build   (PostgreSQL + 2 instances + conformance)
+```
+
 ## How a purchase flows
 
 ```mermaid
@@ -117,22 +143,26 @@ sequenceDiagram
 spec/            Normative specification (RFC 2119), every rule with a stable ID
 schemas/         JSON Schemas: participant, grant, snapshot, confirmation, order, error
 src/core/        Reference engine — grants, delegation, snapshots, confirmations, idempotency
+src/store/       MemoryStore · PostgresStore (migrations, transactions) · zero-dependency PG driver
 src/server/      Zero-dependency HTTP reference server (+ fixture hooks for testing)
 conformance/     39 executable cases + CLI runner with JSON reports
-benchmarks/      Seeded anomaly-injection benchmark vs. a naive baseline
+test/            Unit tests, conformance on both stores, multi-instance tests
+benchmarks/      Anomaly-injection benchmark · cluster load benchmark
 examples/        Narrated end-to-end walkthrough
 site/            The live playground (GitHub Pages)
-docs/            Quickstart, API reference, trial-report template
+docs/            Quickstart, API reference, deployment guide, trial-report template
 ```
 
 | Command | What it does |
 |---|---|
 | `npm run demo` | Narrated walkthrough with an AI helper, a price change and a retry storm |
-| `npm test` | Unit tests + full conformance suite (54 tests) |
+| `npm test` | Unit tests + full conformance suite on the in-memory store |
+| `npm run test:cluster` | Three instances on one PostgreSQL database under concurrent load (needs `OICT_TEST_DATABASE_URL`) |
 | `npm run conformance` | Pretty conformance report (`-- --compact` for one line per category) |
 | `npm run bench` | Anomaly-injection benchmark; writes `benchmarks/results/` |
+| `npm run bench:cluster` | Cluster load benchmark with database-level invariant checks |
 | `npm run dev` | Reference server on `:8787` with test hooks, auto-reload |
-| `docker compose up` | Server + conformance run in containers |
+| `docker compose up --build` | PostgreSQL + two OICT instances + a conformance run |
 
 ## Where OICT fits
 
@@ -140,8 +170,9 @@ OICT does **not** replace catalogs, checkout or payment. It is designed as a pro
 
 ## Roadmap
 
-- **v0.1 (now):** spec draft, reference engine, 39 conformance cases, benchmark, playground
-- **v0.2:** ≥ 50 cases, multi-item carts, JWS confirmations, containerized three.js and chat clients
+- **v0.1:** spec draft, reference engine, 39 conformance cases, benchmark, playground
+- **v0.2 (now):** PostgreSQL store, multi-instance guarantees, cluster tests and benchmark
+- **v0.3:** ≥ 50 cases, multi-item carts, JWS confirmations, containerized three.js and chat clients
 - **Next:** game-engine (C#) sample, voice and AR-panel profiles, adapter profiles, extension proposals to open-protocol communities
 
 Details and success criteria: [ROADMAP.md](ROADMAP.md).

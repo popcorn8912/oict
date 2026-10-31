@@ -4,10 +4,12 @@
 
 <p align="center">
   <a href="https://github.com/popcorn8912/oict/actions/workflows/ci.yml"><img alt="CI" src="https://img.shields.io/github/actions/workflow/status/popcorn8912/oict/ci.yml?branch=main&style=flat-square&label=ci&labelColor=1F1A48&color=7CF2B0"></a>
-  <img alt="Conformance 39/39" src="https://img.shields.io/badge/conformance-39%2F39-7CF2B0?style=flat-square&labelColor=1F1A48">
+  <img alt="Conformance 46/46" src="https://img.shields.io/badge/conformance-46%2F46-7CF2B0?style=flat-square&labelColor=1F1A48">
   <img alt="Anomaly detection 100% in benchmark" src="https://img.shields.io/badge/anomaly%20detection-100%25%20(sim)-B490FF?style=flat-square&labelColor=1F1A48">
   <img alt="Zero runtime dependencies" src="https://img.shields.io/badge/runtime%20deps-0-5EE7DF?style=flat-square&labelColor=1F1A48">
   <img alt="PostgreSQL, multi-instance" src="https://img.shields.io/badge/PostgreSQL-multi--instance-9FB8FF?style=flat-square&labelColor=1F1A48">
+  <img alt="Ed25519 signed tokens" src="https://img.shields.io/badge/tokens-Ed25519%20JWS-B490FF?style=flat-square&labelColor=1F1A48">
+  <img alt="Prometheus metrics and audit trail" src="https://img.shields.io/badge/ops-metrics%20%C2%B7%20audit%20%C2%B7%20logs-FF8BD1?style=flat-square&labelColor=1F1A48">
   <img alt="Node 22.18+" src="https://img.shields.io/badge/node-%E2%89%A522.18-5EE7DF?style=flat-square&labelColor=1F1A48">
   <a href="LICENSE"><img alt="Apache-2.0" src="https://img.shields.io/badge/license-Apache--2.0-FF8BD1?style=flat-square&labelColor=1F1A48"></a>
 </p>
@@ -75,7 +77,7 @@ Duplicate purchases are stopped twice: by idempotency keys **and** by single-use
 ## Proof you can run
 
 <p align="center">
-  <img src="assets/conformance.svg" alt="Terminal: 39 of 39 OICT conformance cases pass across eight categories." width="80%">
+  <img src="assets/conformance.svg" alt="Terminal: 46 of 46 OICT conformance cases pass across eight categories." width="80%">
 </p>
 
 The conformance suite talks to **any** implementation over HTTP. Every case cites the rule it verifies, so a failure points straight at a sentence in the spec.
@@ -112,9 +114,29 @@ Run one instance in memory for development, or **any number of instances on one 
 Schema migrations run on start under an advisory lock, so a fleet can roll out at once. The runtime still has zero dependencies, because it includes a small PostgreSQL driver (SCRAM-SHA-256, TLS, pooling). Configuration: [docs/deployment.md](docs/deployment.md).
 
 ```bash
-export OICT_DATABASE_URL=postgres://oict:oict@localhost:5432/oict OICT_SECRET=$(openssl rand -hex 32)
+export OICT_DATABASE_URL=postgres://oict:oict@localhost:5432/oict OICT_SIGNING_KEY=$(openssl rand -hex 32)
 npm start                      # or: docker compose up --build   (PostgreSQL + 2 instances + conformance)
 ```
+
+## Signed, attributable, observable
+
+**No bare ids.** Every request that spends under a grant carries a short-lived **Bearer access token** signed with Ed25519. The server checks signature, issuer, audience and expiry, and refuses anyone who is not the grant's subject. Knowing a grant id is worth nothing (MPA-7). Unsigned or mistyped tokens are refused (MPA-8).
+
+**Verifiable confirmations.** A consumer's confirmation is an Ed25519-signed JWS of the exact snapshot they saw. The public keys are at `/.well-known/jwks.json`, so a platform, an app developer or an auditor can check any order's confirmation without a shared secret (STB-9). Keys rotate without downtime.
+
+**Who did what, for whom.** An append-only audit trail records grants, revocations, agent carts, orders and **refused attempts with their reason**. The order event commits in the same transaction as the order, and a database trigger rejects edits and deletions. A consumer's app can show "everything done on your behalf" from `GET /v1/audit`:
+
+```text
+  8. Maya checks what was done on her behalf
+     ✔ grant.issued   by maya
+     ✔ grant.issued   by space-mall
+     ✔ cart.prepared  by shop-helper
+     ⛔ order.refused  by space-mall  STALE_CONFIRMATION
+     ✔ order.placed   by space-mall  ord_xnaBXkM_3YMo
+     ⛔ order.refused  by space-mall  CONFIRMATION_CONSUMED
+```
+
+**Operable.** Prometheus metrics at `/metrics` count requests, latency, orders and **every refusal by OICT error code**, the signal to alert on. Structured JSON logs and `X-Request-Id` connect one purchase across client, server and audit trail. Details: [docs/deployment.md](docs/deployment.md#monitoring).
 
 ## How a purchase flows
 
@@ -132,9 +154,9 @@ sequenceDiagram
     U->>A: taps Buy on what is shown
     A->>M: confirm h2
     M-->>A: confirmation token (h2, 120 s, single use)
-    A->>M: place order + Idempotency-Key
-    M->>M: re-check h2 · grant chain · minor policy
-    M-->>A: 201 order (records snapshot h2)
+    A->>M: place order + Bearer token + Idempotency-Key
+    M->>M: verify token · re-check h2 · grant chain · minor policy
+    M-->>A: 201 order (records snapshot h2, audit event in the same transaction)
 ```
 
 ## What's in the box
@@ -142,11 +164,11 @@ sequenceDiagram
 ```text
 spec/            Normative specification (RFC 2119), every rule with a stable ID
 schemas/         JSON Schemas: participant, grant, snapshot, confirmation, order, error
-src/core/        Reference engine — grants, delegation, snapshots, confirmations, idempotency
+src/core/        Reference engine — grants, delegation, snapshots, confirmations, idempotency, Ed25519 JWS
 src/store/       MemoryStore · PostgresStore (migrations, transactions) · zero-dependency PG driver
-src/server/      Zero-dependency HTTP reference server (+ fixture hooks for testing)
-conformance/     39 executable cases + CLI runner with JSON reports
-test/            Unit tests, conformance on both stores, multi-instance tests
+src/server/      Zero-dependency HTTP server · Bearer auth · metrics · JSON logs · audit endpoint
+conformance/     46 executable cases + CLI runner with JSON reports
+test/            Unit, auth and observability tests, conformance on both stores, multi-instance tests
 benchmarks/      Anomaly-injection benchmark · cluster load benchmark
 examples/        Narrated end-to-end walkthrough
 site/            The live playground (GitHub Pages)
@@ -171,8 +193,9 @@ OICT does **not** replace catalogs, checkout or payment. It is designed as a pro
 ## Roadmap
 
 - **v0.1:** spec draft, reference engine, 39 conformance cases, benchmark, playground
-- **v0.2 (now):** PostgreSQL store, multi-instance guarantees, cluster tests and benchmark
-- **v0.3:** ≥ 50 cases, multi-item carts, JWS confirmations, containerized three.js and chat clients
+- **v0.2:** PostgreSQL store, multi-instance guarantees, cluster tests and benchmark
+- **v0.3 (now):** signed Bearer tokens, Ed25519 JWS confirmations with published keys, audit trail, metrics, structured logs
+- **v0.4:** ≥ 50 cases, multi-item carts, containerized three.js and chat clients
 - **Next:** game-engine (C#) sample, voice and AR-panel profiles, adapter profiles, extension proposals to open-protocol communities
 
 Details and success criteria: [ROADMAP.md](ROADMAP.md).

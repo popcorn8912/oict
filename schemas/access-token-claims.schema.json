@@ -1,0 +1,62 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/popcorn8912/oict/schemas/access-token-claims.schema.json",
+  "title": "OICT Access Token Claims",
+  "description": "Payload of an access token: compact JWS, alg EdDSA, typ at+jwt (MPA-7, MPA-8).",
+  "type": "object",
+  "required": [
+    "iss",
+    "sub",
+    "aud",
+    "exp",
+    "iat",
+    "jti",
+    "grant_id"
+  ],
+  "properties": {
+    "iss": {
+      "type": "string"
+    },
+    "sub": {
+      "type": "string",
+      "description": "Must equal the grant's subject."
+    },
+    "aud": {
+      "oneOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1
+        }
+      ]
+    },
+    "exp": {
+      "type": "integer",
+      "description": "seconds since epoch"
+    },
+    "iat": {
+      "type": "integer"
+    },
+    "nbf": {
+      "type": "integer"
+    },
+    "jti": {
+      "type": "string"
+    },
+    "client_id": {
+      "type": "string"
+    },
+    "scope": {
+      "type": "string",
+      "description": "Space-separated; may only narrow the grant."
+    },
+    "grant_id": {
+      "type": "string"
+    }
+  }
+}

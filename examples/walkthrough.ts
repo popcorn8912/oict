@@ -40,6 +40,7 @@ ok(`platform ${cyan("spatial-co")} → developer ${cyan("pixel-studio")} → app
 step(2, "Maya authorizes the app, and the app delegates a slice to its AI helper");
 const appGrant = (await call("POST", "/v1/grants", { issuer: "maya", subject: "space-mall", application: "space-mall", scopes: ["catalog:read", "cart:write", "order:place", "order:read"], ttlSeconds: 3600 })).body;
 ok(`grant ${dim(appGrant.id)}  scopes: ${appGrant.scopes.join(" ")}`);
+note(`signed access token for space-mall (EdDSA, expires in ${appGrant.expiresIn} s)`);
 const agentTry = await call("POST", "/v1/grants", { issuer: "space-mall", subject: "shop-helper", application: "space-mall", scopes: ["cart:write", "order:place"], ttlSeconds: 600, parentGrantId: appGrant.id });
 blocked(`helper asked for order:place → ${yellow(agentTry.body.error.code)}`);
 const agentGrant = (await call("POST", "/v1/grants", { issuer: "space-mall", subject: "shop-helper", application: "space-mall", scopes: ["cart:write"], ttlSeconds: 600, parentGrantId: appGrant.id })).body;
@@ -54,9 +55,9 @@ sel = (await call("POST", `/v1/sessions/${session.id}/selection`, { sceneObjectI
 ok(`switches to ${sel.snapshot.variantId} → stateVersion ${sel.stateVersion}  $${(sel.snapshot.unitPriceMinor / 100).toFixed(2)}`);
 
 step(4, "The AI helper, a beat behind, drafts a cart for the old variant");
-const late = await call("POST", "/v1/carts", { sessionId: session.id, stateVersion: staleAgentVersion }, { authorization: `OICT-Grant ${agentGrant.id}` });
+const late = await call("POST", "/v1/carts", { sessionId: session.id, stateVersion: staleAgentVersion }, { authorization: `Bearer ${agentGrant.accessToken}` });
 blocked(`draft against stateVersion ${staleAgentVersion} → ${yellow(late.body.error.code)}`);
-const cart = (await call("POST", "/v1/carts", { sessionId: session.id, stateVersion: sel.stateVersion }, { authorization: `OICT-Grant ${agentGrant.id}` })).body;
+const cart = (await call("POST", "/v1/carts", { sessionId: session.id, stateVersion: sel.stateVersion }, { authorization: `Bearer ${agentGrant.accessToken}` })).body;
 ok(`draft cart for current state ${dim(cart.id)} ${dim("(drafts never become orders on their own)")}`);
 
 step(5, "Maya taps Buy — then the price changes before the order lands");
@@ -64,7 +65,7 @@ let conf = (await call("POST", "/v1/confirmations", { sessionId: session.id, con
 ok(`confirmation bound to ${dim(sel.snapshotHash.slice(0, 22) + "…")}, expires in 120 s`);
 await call("POST", "/v1/_test/price", { sku: "SYN-HOODIE-01", variantId: "teal-m", unitPriceMinor: 4500 });
 note("merchant updates teal-m: $39.00 → $45.00");
-const auth = { authorization: `OICT-Grant ${appGrant.id}` };
+const auth = { authorization: `Bearer ${appGrant.accessToken}` };
 let r = await call("POST", "/v1/orders", { sessionId: session.id, confirmationToken: conf.confirmationToken }, { ...auth, "idempotency-key": "maya-order-attempt-1" });
 blocked(`order → ${yellow(r.body.error.code)} ${dim("— Maya never agreed to $45")}`);
 
@@ -80,6 +81,13 @@ const replay = await call("POST", "/v1/orders", { sessionId: session.id, confirm
 ok(`same key → same order ${cyan(replay.body.id)} ${dim(`(replay: ${replay.replay})`)}`);
 const regen = await call("POST", "/v1/orders", { sessionId: session.id, confirmationToken: conf.confirmationToken }, { ...auth, "idempotency-key": "regenerated-after-timeout" });
 blocked(`regenerated key → ${yellow(regen.body.error.code)} ${dim("— one tap, one order")}`);
+
+step(8, "Maya checks what was done on her behalf");
+const trail = (await call("GET", "/v1/audit", undefined, auth)).body.events as any[];
+for (const e of [...trail].reverse()) {
+  const mark = e.type === "order.refused" ? red("⛔") : green("✔");
+  console.log(`     ${mark} ${e.type.padEnd(14)} ${dim("by")} ${cyan(e.actor ?? "?")}${e.code ? `  ${yellow(e.code)}` : ""}${e.orderId ? `  ${dim(e.orderId)}` : ""}`);
+}
 
 console.log(`\n  ${green("✔")} ${bold("1 intended order. 0 unintended orders.")}\n`);
 server.close();

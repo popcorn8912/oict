@@ -10,4 +10,4 @@ You can expect an acknowledgement within 7 days and a status update within 30 da
 
 ## Scope
 
-The reference server is a correctness reference, not a production service (see [spec/07](spec/07-security-considerations.md)). Reports about the simplified grant header or the in-memory default mode are expected behaviour; reports that it violates a normative rule are very welcome.
+The reference server is a correctness reference, not a production service (see [spec/07](spec/07-security-considerations.md)). Reports that the reference server acts as its own authorization server, or about the in-memory default mode, are expected behaviour; reports that it violates a normative rule are very welcome.

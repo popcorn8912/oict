@@ -1,6 +1,6 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 920 510" width="920" height="510" role="img" aria-labelledby="t d">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 920 520" width="920" height="520" role="img" aria-labelledby="t d">
   <title id="t">OICT conformance suite run</title>
-  <desc id="d">Terminal recording: npm run conformance reports 39 of 39 cases passing across eight categories — multi-party authorization, delegation, revocation, idempotency, state–order binding, AI agent controls, minor protection and error envelope.</desc>
+  <desc id="d">Terminal recording: npm run conformance reports 46 of 46 cases passing across eight categories — multi-party authorization (including signed access tokens), delegation, revocation, idempotency, state–order binding (including published verification keys), AI agent controls, minor protection and error envelope.</desc>
   <style>
     text { font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 16px; }
     .typed { animation: type 14s steps(32) infinite; }
@@ -12,22 +12,22 @@
       .typed { width: 420px; } .bar { width: 300px; }
     }
   </style>
-  <rect width="920" height="510" rx="18" fill="#16122E" stroke="#3A3277"/>
+  <rect width="920" height="520" rx="18" fill="#16122E" stroke="#3A3277"/>
   <rect width="920" height="44" rx="18" fill="#1F1A48"/><rect y="26" width="920" height="18" fill="#1F1A48"/>
   <circle cx="26" cy="22" r="6" fill="#FF6B8A"/><circle cx="46" cy="22" r="6" fill="#F7C873"/><circle cx="66" cy="22" r="6" fill="#7CF2B0"/>
   <text x="460.0" y="27" fill="#8F89BD" font-size="13" text-anchor="middle">oict — conformance</text>
     <text x="32" y="96" fill="#B490FF">$</text>
   <clipPath id="typed"><rect class="typed" x="52" y="76" height="28" width="0"/></clipPath>
   <text x="52" y="96" fill="#ECE9FF" clip-path="url(#typed)">npm run conformance -- --compact</text>
-  <g class="l0"><text x="32" y="140"><tspan fill="#B490FF">◆</tspan><tspan fill="#ECE9FF" font-weight="700"> OICT conformance</tspan><tspan fill="#6F69A0"> v0.2.0</tspan></text><text x="32" y="164" fill="#6F69A0">target <tspan fill="#5EE7DF">http://127.0.0.1:8787</tspan>  cases 39</text></g>
-  <g class="r0"><text x="32" y="204"><tspan fill="#7CF2B0">✔</tspan><tspan fill="#ECE9FF"> Multi-party authorization</tspan></text><text x="560" y="204" fill="#ECE9FF" text-anchor="end">6/6</text><text x="584" y="204" fill="#7CF2B0" letter-spacing="1">■■■■■■</text><text x="760" y="204" fill="#6F69A0">129ms</text></g>
-  <g class="r1"><text x="32" y="234"><tspan fill="#7CF2B0">✔</tspan><tspan fill="#ECE9FF"> Delegation</tspan></text><text x="560" y="234" fill="#ECE9FF" text-anchor="end">5/5</text><text x="584" y="234" fill="#7CF2B0" letter-spacing="1">■■■■■</text><text x="760" y="234" fill="#6F69A0">75ms</text></g>
-  <g class="r2"><text x="32" y="264"><tspan fill="#7CF2B0">✔</tspan><tspan fill="#ECE9FF"> Revocation &amp; expiry</tspan></text><text x="560" y="264" fill="#ECE9FF" text-anchor="end">4/4</text><text x="584" y="264" fill="#7CF2B0" letter-spacing="1">■■■■</text><text x="760" y="264" fill="#6F69A0">52ms</text></g>
-  <g class="r3"><text x="32" y="294"><tspan fill="#7CF2B0">✔</tspan><tspan fill="#ECE9FF"> Idempotency &amp; duplicate purchase</tspan></text><text x="560" y="294" fill="#ECE9FF" text-anchor="end">5/5</text><text x="584" y="294" fill="#7CF2B0" letter-spacing="1">■■■■■</text><text x="760" y="294" fill="#6F69A0">82ms</text></g>
-  <g class="r4"><text x="32" y="324"><tspan fill="#7CF2B0">✔</tspan><tspan fill="#ECE9FF"> State–order binding</tspan></text><text x="560" y="324" fill="#ECE9FF" text-anchor="end">8/8</text><text x="584" y="324" fill="#7CF2B0" letter-spacing="1">■■■■■■■■</text><text x="760" y="324" fill="#6F69A0">97ms</text></g>
-  <g class="r5"><text x="32" y="354"><tspan fill="#7CF2B0">✔</tspan><tspan fill="#ECE9FF"> AI agent controls</tspan></text><text x="560" y="354" fill="#ECE9FF" text-anchor="end">5/5</text><text x="584" y="354" fill="#7CF2B0" letter-spacing="1">■■■■■</text><text x="760" y="354" fill="#6F69A0">61ms</text></g>
-  <g class="r6"><text x="32" y="384"><tspan fill="#7CF2B0">✔</tspan><tspan fill="#ECE9FF"> Minor protection</tspan></text><text x="560" y="384" fill="#ECE9FF" text-anchor="end">4/4</text><text x="584" y="384" fill="#7CF2B0" letter-spacing="1">■■■■</text><text x="760" y="384" fill="#6F69A0">39ms</text></g>
-  <g class="r7"><text x="32" y="414"><tspan fill="#7CF2B0">✔</tspan><tspan fill="#ECE9FF"> Error envelope</tspan></text><text x="560" y="414" fill="#ECE9FF" text-anchor="end">2/2</text><text x="584" y="414" fill="#7CF2B0" letter-spacing="1">■■</text><text x="760" y="414" fill="#6F69A0">2ms</text></g>
+  <g class="l0"><text x="32" y="140"><tspan fill="#B490FF">◆</tspan><tspan fill="#ECE9FF" font-weight="700"> OICT conformance</tspan><tspan fill="#6F69A0"> v0.3.0</tspan></text><text x="32" y="164" fill="#6F69A0">target <tspan fill="#5EE7DF">http://127.0.0.1:8787</tspan>  cases 46</text></g>
+  <g class="r0"><text x="32" y="204"><tspan fill="#7CF2B0">✔</tspan><tspan fill="#ECE9FF"> Multi-party authorization</tspan></text><text x="560" y="204" fill="#ECE9FF" text-anchor="end">11/11</text><text x="584" y="204" fill="#7CF2B0" letter-spacing="1">■■■■■■■■■■■</text><text x="790" y="204" fill="#6F69A0">310ms</text></g>
+  <g class="r1"><text x="32" y="234"><tspan fill="#7CF2B0">✔</tspan><tspan fill="#ECE9FF"> Delegation</tspan></text><text x="560" y="234" fill="#ECE9FF" text-anchor="end">5/5</text><text x="584" y="234" fill="#7CF2B0" letter-spacing="1">■■■■■</text><text x="790" y="234" fill="#6F69A0">70ms</text></g>
+  <g class="r2"><text x="32" y="264"><tspan fill="#7CF2B0">✔</tspan><tspan fill="#ECE9FF"> Revocation &amp; expiry</tspan></text><text x="560" y="264" fill="#ECE9FF" text-anchor="end">4/4</text><text x="584" y="264" fill="#7CF2B0" letter-spacing="1">■■■■</text><text x="790" y="264" fill="#6F69A0">60ms</text></g>
+  <g class="r3"><text x="32" y="294"><tspan fill="#7CF2B0">✔</tspan><tspan fill="#ECE9FF"> Idempotency &amp; duplicate purchase</tspan></text><text x="560" y="294" fill="#ECE9FF" text-anchor="end">5/5</text><text x="584" y="294" fill="#7CF2B0" letter-spacing="1">■■■■■</text><text x="790" y="294" fill="#6F69A0">82ms</text></g>
+  <g class="r4"><text x="32" y="324"><tspan fill="#7CF2B0">✔</tspan><tspan fill="#ECE9FF"> State–order binding</tspan></text><text x="560" y="324" fill="#ECE9FF" text-anchor="end">10/10</text><text x="584" y="324" fill="#7CF2B0" letter-spacing="1">■■■■■■■■■■</text><text x="790" y="324" fill="#6F69A0">137ms</text></g>
+  <g class="r5"><text x="32" y="354"><tspan fill="#7CF2B0">✔</tspan><tspan fill="#ECE9FF"> AI agent controls</tspan></text><text x="560" y="354" fill="#ECE9FF" text-anchor="end">5/5</text><text x="584" y="354" fill="#7CF2B0" letter-spacing="1">■■■■■</text><text x="790" y="354" fill="#6F69A0">83ms</text></g>
+  <g class="r6"><text x="32" y="384"><tspan fill="#7CF2B0">✔</tspan><tspan fill="#ECE9FF"> Minor protection</tspan></text><text x="560" y="384" fill="#ECE9FF" text-anchor="end">4/4</text><text x="584" y="384" fill="#7CF2B0" letter-spacing="1">■■■■</text><text x="790" y="384" fill="#6F69A0">60ms</text></g>
+  <g class="r7"><text x="32" y="414"><tspan fill="#7CF2B0">✔</tspan><tspan fill="#ECE9FF"> Error envelope</tspan></text><text x="560" y="414" fill="#ECE9FF" text-anchor="end">2/2</text><text x="584" y="414" fill="#7CF2B0" letter-spacing="1">■■</text><text x="790" y="414" fill="#6F69A0">4ms</text></g>
   <rect x="32" y="444" width="300" height="14" rx="3" fill="#2A2458"/><rect class="bar" x="32" y="444" width="0" height="14" rx="3" fill="#7CF2B0"/>
-  <g class="done"><text x="348" y="458"><tspan fill="#ECE9FF" font-weight="700">39/39</tspan><tspan fill="#ECE9FF"> passed</tspan><tspan fill="#6F69A0"> in 538ms</tspan></text><text x="32" y="488" fill="#7CF2B0">✔ conformant with OICT v0.1 core profile</text></g>
+  <g class="done"><text x="348" y="458"><tspan fill="#ECE9FF" font-weight="700">46/46</tspan><tspan fill="#ECE9FF"> passed</tspan><tspan fill="#6F69A0"> in 809ms</tspan></text><text x="32" y="488" fill="#7CF2B0">✔ conformant with OICT spec v0.2</text></g>
 </svg>

@@ -21,11 +21,16 @@
 - [x] Multi-instance test suite and cluster load benchmark
 - [x] Safe concurrent migrations; zero-dependency PostgreSQL driver
 
-## Next — v0.3
+## Done — v0.3
+
+- [x] Ed25519 JWS confirmations, published verification keys, key rotation
+- [x] Signed Bearer access tokens bound to the grant's subject; external issuers can be trusted
+- [x] Append-only audit trail, Prometheus metrics, structured logs with request ids
+
+## Next — v0.4
 
 - [ ] Conformance suite to ≥ 50 cases (multi-item carts, quantity changes, partial revocation)
 - [ ] Multi-item cart snapshots
-- [ ] JWS (asymmetric) confirmation tokens
 - [ ] Containerized sample clients: three.js scene and chat-assistant client
 - [ ] Integration-effort study protocol (how the 40 % metric is measured)
 

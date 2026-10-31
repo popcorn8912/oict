@@ -44,11 +44,12 @@ export interface Cluster {
 export async function startCluster(opts: {
   databaseUrl: string;
   instances: number;
-  secret?: string;
+  /** Ed25519 seed (64 hex) shared by every instance. Random when omitted. */
+  signingKey?: string;
   poolSize?: number;
   testHooks?: boolean;
 }): Promise<Cluster> {
-  const secret = opts.secret ?? randomBytes(32).toString("hex");
+  const signingKey = opts.signingKey ?? randomBytes(32).toString("hex");
   const children: ChildProcess[] = [];
   const stop = async () => {
     await Promise.all(
@@ -74,7 +75,8 @@ export async function startCluster(opts: {
             PORT: "0",
             NO_COLOR: "1",
             OICT_DATABASE_URL: opts.databaseUrl,
-            OICT_SECRET: secret,
+            OICT_SIGNING_KEY: signingKey,
+            OICT_LOG: "off",
             OICT_INSTANCE_ID: `node-${i + 1}`,
             OICT_DB_POOL_SIZE: String(opts.poolSize ?? 10),
             OICT_TEST_HOOKS: opts.testHooks === false ? "0" : "1",

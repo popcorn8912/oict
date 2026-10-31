@@ -117,6 +117,8 @@ export interface Session {
 export interface ConfirmationClaims {
   /** Token version. */
   v: 1;
+  /** Issuer of the confirmation (the merchant service). */
+  iss: string;
   sessionId: string;
   consumerId: string;
   snapshotHash: string;
@@ -177,6 +179,7 @@ export type OictErrorCode =
   | "MINOR_RESTRICTED"
   | "GUARDIAN_CONSENT_REQUIRED"
   | "LIMIT_EXCEEDED"
+  | "UNAUTHENTICATED"
   | "NOT_FOUND";
 
 export const ERROR_STATUS: Record<OictErrorCode, number> = {
@@ -201,6 +204,7 @@ export const ERROR_STATUS: Record<OictErrorCode, number> = {
   MINOR_RESTRICTED: 403,
   GUARDIAN_CONSENT_REQUIRED: 403,
   LIMIT_EXCEEDED: 403,
+  UNAUTHENTICATED: 401,
   NOT_FOUND: 404,
 };
 
@@ -213,4 +217,49 @@ export class OictError extends Error {
     this.code = code;
     this.status = ERROR_STATUS[code];
   }
+}
+
+/** Claims of an OICT access token (RFC 9068 shape plus the grant it carries). */
+export interface AccessTokenClaims {
+  iss: string;
+  sub: string;
+  aud: string | string[];
+  exp: number;
+  iat: number;
+  nbf?: number;
+  jti: string;
+  client_id?: string;
+  scope?: string;
+  grant_id: string;
+}
+
+/** Who is calling, as established by authentication. */
+export interface Caller {
+  grantId: string;
+  /** Authenticated principal; must equal the grant's subject when present. */
+  subject?: string;
+  /** Scopes carried by the access token; when present they further narrow the grant. */
+  scopes?: string[];
+}
+
+export type AuditType = "grant.issued" | "grant.revoked" | "cart.prepared" | "order.placed" | "order.refused";
+
+/** One append-only audit record: who did what, on whose behalf. */
+export interface AuditEvent {
+  id: string;
+  at: number;
+  type: AuditType;
+  /** Participant that acted (consumer, application or agent). */
+  actor?: string;
+  /** Consumer on whose behalf the action happened. */
+  consumerId?: string;
+  applicationId?: string;
+  grantId?: string;
+  sessionId?: string;
+  orderId?: string;
+  /** OICT error code for refusals. */
+  code?: string;
+  detail?: Record<string, unknown>;
+  instance?: string;
+  requestId?: string;
 }

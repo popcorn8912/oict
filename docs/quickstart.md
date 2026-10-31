@@ -32,16 +32,20 @@ curl -s -XPOST localhost:8787/v1/participants -H "$H" -d '{"id":"dev","kind":"de
 curl -s -XPOST localhost:8787/v1/participants -H "$H" -d '{"id":"app","kind":"application","platformId":"plat","developerId":"dev"}'
 curl -s -XPOST localhost:8787/v1/participants -H "$H" -d '{"id":"maya","kind":"consumer","ageBand":"adult"}'
 
-GRANT=$(curl -s -XPOST localhost:8787/v1/grants -H "$H" \
-  -d '{"issuer":"maya","subject":"app","application":"app","scopes":["order:place"],"ttlSeconds":3600}' | jq -r .id)
+TOKEN=$(curl -s -XPOST localhost:8787/v1/grants -H "$H" \
+  -d '{"issuer":"maya","subject":"app","application":"app","scopes":["order:place","order:read"],"ttlSeconds":3600}' | jq -r .accessToken)
 SES=$(curl -s -XPOST localhost:8787/v1/sessions -H "$H" -d '{"consumerId":"maya","applicationId":"app"}' | jq -r .id)
 HASH=$(curl -s -XPOST localhost:8787/v1/sessions/$SES/selection -H "$H" \
   -d '{"sceneObjectId":"rack","sku":"SYN-HOODIE-01","variantId":"violet-m","quantity":1}' | jq -r .snapshotHash)
-TOKEN=$(curl -s -XPOST localhost:8787/v1/confirmations -H "$H" \
+CONFIRMATION=$(curl -s -XPOST localhost:8787/v1/confirmations -H "$H" \
   -d "{\"sessionId\":\"$SES\",\"consumerId\":\"maya\",\"snapshotHash\":\"$HASH\"}" | jq -r .confirmationToken)
 
-curl -s -XPOST localhost:8787/v1/orders -H "$H" -H "authorization: OICT-Grant $GRANT" \
-  -H "idempotency-key: my-first-order-1" -d "{\"sessionId\":\"$SES\",\"confirmationToken\":\"$TOKEN\"}" | jq
+curl -s -XPOST localhost:8787/v1/orders -H "$H" -H "authorization: Bearer $TOKEN" \
+  -H "idempotency-key: my-first-order-1" -d "{\"sessionId\":\"$SES\",\"confirmationToken\":\"$CONFIRMATION\"}" | jq
+
+# who did what on Maya's behalf, and what the server exposes for monitoring
+curl -s localhost:8787/v1/audit -H "authorization: Bearer $TOKEN" | jq '.events[] | {type, actor, orderId}'
+curl -s localhost:8787/metrics | grep oict_orders_total
 ```
 
 ## 4. Test your own service

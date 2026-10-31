@@ -4,8 +4,8 @@ x-oict: &oict
   build: .
   environment: &oict-env
     OICT_DATABASE_URL: postgres://oict:oict@postgres:5432/oict
-    # Every instance must sign confirmations with the same key. Replace in any real deployment.
-    OICT_SECRET: 9f2c4e6a8b0d1f3e5a7c9b1d3f5e7a9c0b2d4f6e8a1c3e5b7d9f0a2c4e6b8d1f
+    # Ed25519 seed shared by every instance (signs confirmations and access tokens). Replace in any real deployment.
+    OICT_SIGNING_KEY: 9f2c4e6a8b0d1f3e5a7c9b1d3f5e7a9c0b2d4f6e8a1c3e5b7d9f0a2c4e6b8d1f
     OICT_TEST_HOOKS: "1"
   depends_on:
     postgres: { condition: service_healthy }

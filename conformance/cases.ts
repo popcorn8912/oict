@@ -1,4 +1,9 @@
-import { auth, check, confirm, expectError, idem, must, newKey, order, world, type Client } from "./client.ts";
+import { createPublicKey, verify } from "node:crypto";
+import { auth, check, confirm, expectError, idem, must, newKey, order, tokenFor, world, type Client } from "./client.ts";
+
+const b64json = (s: string) => JSON.parse(Buffer.from(s, "base64url").toString("utf8"));
+const b64 = (o: unknown) => Buffer.from(JSON.stringify(o)).toString("base64url");
+const bearer = (t: string) => ({ authorization: `Bearer ${t}` });
 
 export type Category = "AUTH" | "DLG" | "REV" | "IDM" | "STB" | "AGT" | "MIN" | "ERR";
 
@@ -69,6 +74,57 @@ export const CASES: Case[] = [
     async run(c) {
       await world(c);
       await expectError(c.post("/v1/participants", { id: "rogue", kind: "application", platformId: "nope", developerId: "dev" }), "BAD_REQUEST", 400);
+    },
+  },
+  {
+    id: "OICT-AUTH-007", category: "AUTH", rule: "MPA-7", title: "knowing a grant id is not enough to use it",
+    async run(c) {
+      const w = await world(c);
+      check(tokenFor(w.appGrant), "POST /v1/grants must return an accessToken for the grant's subject");
+      const t = await confirm(w);
+      await expectError(
+        c.post("/v1/orders", { sessionId: w.sessionId, confirmationToken: t }, { authorization: `OICT-Grant ${w.appGrant}`, ...idem(newKey()) }),
+        "UNAUTHENTICATED",
+        401,
+      );
+    },
+  },
+  {
+    id: "OICT-AUTH-008", category: "AUTH", rule: "MPA-7", title: "an altered access token is rejected",
+    async run(c) {
+      const w = await world(c);
+      const [h, p, s] = tokenFor(w.appGrant)!.split(".");
+      const claims = b64json(p!);
+      claims.scope = "catalog:read cart:write checkout:prepare order:place order:read";
+      claims.exp += 86400;
+      const forged = `${h}.${b64(claims)}.${s}`;
+      await expectError(c.post("/v1/carts", { sessionId: w.sessionId, stateVersion: w.stateVersion }, bearer(forged)), "UNAUTHENTICATED", 401);
+    },
+  },
+  {
+    id: "OICT-AUTH-009", category: "AUTH", rule: "MPA-7", title: "an expired access token is rejected while the grant lives on",
+    async run(c) {
+      const w = await world(c);
+      const t = await confirm(w);
+      await must(c.post("/v1/_test/clock", { advanceSeconds: 3000 }), 200);
+      // Grant lives 3600 s; the access token is short-lived and has expired.
+      await expectError(c.post("/v1/orders", { sessionId: w.sessionId, confirmationToken: t }, { ...auth(w.appGrant), ...idem(newKey()) }), "UNAUTHENTICATED", 401);
+    },
+  },
+  {
+    id: "OICT-AUTH-010", category: "AUTH", rule: "MPA-8", title: "an unsigned (alg: none) access token is rejected",
+    async run(c) {
+      const w = await world(c);
+      const [h, p] = tokenFor(w.appGrant)!.split(".");
+      const header = { ...b64json(h!), alg: "none" };
+      await expectError(c.post("/v1/carts", { sessionId: w.sessionId, stateVersion: w.stateVersion }, bearer(`${b64(header)}.${p}.`)), "UNAUTHENTICATED", 401);
+    },
+  },
+  {
+    id: "OICT-AUTH-011", category: "AUTH", rule: "MPA-8", title: "a confirmation token cannot be used as an access token",
+    async run(c) {
+      const w = await world(c);
+      await expectError(c.post("/v1/carts", { sessionId: w.sessionId, stateVersion: w.stateVersion }, bearer(await confirm(w))), "UNAUTHENTICATED", 401);
     },
   },
 
@@ -297,6 +353,30 @@ export const CASES: Case[] = [
       const r = await must(order(w, await confirm(w)), 201);
       check(r.body.snapshotHash === w.snapshotHash, "order snapshot differs from confirmed snapshot");
       check(r.body.snapshot.variantId === "violet-m" && r.body.totalMinor === 4200, "order contents differ from what was confirmed");
+    },
+  },
+  {
+    id: "OICT-STB-009", category: "STB", rule: "STB-5, STB-9", title: "anyone can verify a confirmation with the published keys",
+    async run(c) {
+      const w = await world(c);
+      const t = await confirm(w);
+      const jwks = await must(c.get("/.well-known/jwks.json"), 200);
+      const [h, p, s] = t.split(".");
+      const header = b64json(h!);
+      check(header.alg === "EdDSA" && typeof header.kid === "string", "confirmation must be a JWS signed with EdDSA and name its kid");
+      const jwk = (jwks.body.keys as any[]).find((k) => k.kid === header.kid);
+      check(jwk, "the confirmation's kid is not in /.well-known/jwks.json");
+      const key = createPublicKey({ key: { kty: jwk.kty, crv: jwk.crv, x: jwk.x }, format: "jwk" });
+      check(verify(null, Buffer.from(`${h}.${p}`), key, Buffer.from(s!, "base64url")), "signature does not verify against the published key");
+      const claims = b64json(p!);
+      check(claims.snapshotHash === w.snapshotHash && claims.sessionId === w.sessionId, "claims do not bind the confirmed snapshot");
+    },
+  },
+  {
+    id: "OICT-STB-010", category: "STB", rule: "STB-5", title: "an access token cannot be used as a confirmation",
+    async run(c) {
+      const w = await world(c);
+      await expectError(order(w, tokenFor(w.appGrant)!), "CONFIRMATION_INVALID", 401);
     },
   },
 

@@ -1,4 +1,4 @@
-# OICT Specification · v0.1 (Draft)
+# OICT Specification · v0.2 (Draft)
 
 > **Status:** Working draft. Breaking changes are expected before v1.0.
 > Feedback is welcome through [GitHub Discussions](../../../discussions) or a [spec proposal issue](../../../issues/new?template=spec-proposal.yml).
@@ -14,7 +14,7 @@ The Open Immersive Commerce Transaction Framework (OICT) is a **transaction-inte
 
 | # | Document | Rules |
 |---|---|---|
-| 01 | [Participants, grants & delegation](01-participants.md) | `MPA-*`, `DLG-*`, `REV-*` |
+| 01 | [Participants, grants, delegation & authentication](01-participants.md) | `MPA-*`, `DLG-*`, `REV-*` |
 | 02 | [State–order binding](02-state-binding.md) | `STB-*` |
 | 03 | [AI agent controls](03-agent-controls.md) | `AGT-*` |
 | 04 | [Minor protection profile](04-minor-protection.md) | `MIN-*` |

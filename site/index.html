@@ -203,7 +203,7 @@
         <a class="btn" href="https://github.com/popcorn8912/oict/tree/main/spec">Read the spec</a>
       </div>
       <div class="facts">
-        <span><b>39</b>conformance checks</span>
+        <span><b>46</b>conformance checks</span>
         <span><b>0</b>runtime dependencies</span>
         <span><b>Apache-2.0</b>open source</span>
       </div>
@@ -268,13 +268,13 @@
     <div class="rules">
       <article class="rule">
         <h3><i style="background:var(--cyan)"></i>Who may act, for whom</h3>
-        <p>Platform, developer, application, merchant, consumer and agent form one explicit chain. Authority starts with the consumer, can only narrow when delegated, and disappears everywhere when revoked.</p>
-        <code>MPA-1…6 · DLG-1…5 · REV-1…4</code>
+        <p>Platform, developer, application, merchant, consumer and agent form one explicit chain. Authority starts with the consumer, can only narrow when delegated, and disappears everywhere when revoked. Every call proves who it is with a signed token; a grant id alone buys nothing.</p>
+        <code>MPA-1…8 · DLG-1…5 · REV-1…4</code>
       </article>
       <article class="rule">
         <h3><i style="background:#9FB8FF"></i>Saw it, ordered it</h3>
-        <p>Every change in the scene bumps a state version. A confirmation is bound to the hash of exactly what was on screen, lives two minutes, and is checked again when the order is placed.</p>
-        <code>STB-1…8</code>
+        <p>Every change in the scene bumps a state version. A confirmation is a signed record of exactly what was on screen, lives two minutes, and is checked again when the order is placed. Anyone can verify it with the published keys.</p>
+        <code>STB-1…9</code>
       </article>
       <article class="rule">
         <h3><i style="background:var(--violet)"></i>Agents prepare, people decide</h3>
@@ -302,7 +302,7 @@
     <p class="intro">The conformance suite checks any implementation over HTTP. The benchmark injects nine kinds of anomaly into thousands of synthetic purchases and counts what gets through.</p>
     <div class="two">
       <figure>
-        <img src="assets/conformance.svg" alt="Terminal showing 39 of 39 OICT conformance cases passing across eight categories." width="920" height="510" loading="lazy">
+        <img src="assets/conformance.svg" alt="Terminal showing 46 of 46 OICT conformance cases passing across eight categories." width="920" height="520" loading="lazy">
         <figcaption>npm run conformance -- --compact</figcaption>
       </figure>
       <figure>
@@ -326,7 +326,7 @@
     <p class="intro">Node.js 22.18 or newer runs the TypeScript sources directly. Nothing to install.</p>
 <pre><code><span class="p">$</span> git clone https://github.com/popcorn8912/oict && cd oict
 <span class="p">$</span> npm run demo          <span class="c"># narrated walkthrough</span>
-<span class="p">$</span> npm run conformance   <span class="c"># 39 checks against the reference server</span>
+<span class="p">$</span> npm run conformance   <span class="c"># 46 checks against the reference server</span>
 <span class="p">$</span> npm run bench         <span class="c"># anomaly-injection benchmark</span>
 
 <span class="c"># test your own service</span>

@@ -37,6 +37,7 @@
             "MINOR_RESTRICTED",
             "GUARDIAN_CONSENT_REQUIRED",
             "LIMIT_EXCEEDED",
+            "UNAUTHENTICATED",
             "NOT_FOUND"
           ]
         },

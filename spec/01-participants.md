@@ -56,6 +56,19 @@ Violations of DLG-1 to DLG-4 **MUST** fail with `DELEGATION_INVALID`.
 
 **REV-4.** Only a grant's issuer, or the consumer at the root of its chain, **MAY** revoke it. Other callers **MUST** receive `PRINCIPAL_MISMATCH`.
 
-## 1.5 Transport binding (reference server)
+## 1.5 Authentication
 
-The reference server identifies the grant with `Authorization: OICT-Grant <grantId>`. This is a deliberate simplification for local testing. A production deployment **SHOULD** carry the grant inside an OAuth 2.0 access token (for example as a `grant_id` claim of a JWT access token, or via token introspection) and **MUST** authenticate the caller as the grant's subject.
+Holding a grant identifier is not authority. Every request that acts under a grant authenticates the caller as that grant's subject.
+
+**MPA-7.** Requests that act under a grant **MUST** carry `Authorization: Bearer <access token>`. The access token is a JWT whose claims include `iss`, `sub`, `aud`, `exp`, `iat`, `jti` and `grant_id` (the shape of RFC 9068 plus the grant it acts under), and **MAY** include `scope`. A service **MUST**:
+
+- verify the signature against a key it trusts, and accept tokens only from issuers it trusts;
+- require its own identifier in `aud`, and refuse tokens past `exp`;
+- refuse the request when `sub` is not the grant's subject;
+- treat `scope`, when present, as a further narrowing of the grant's scopes, never a widening.
+
+Failures **MUST** use `UNAUTHENTICATED` (401). A request with no `Authorization` header fails with `UNKNOWN_GRANT` (MPA-1). A bare grant identifier (for example the legacy `OICT-Grant <id>` header) **MUST NOT** be accepted in production.
+
+**MPA-8.** Tokens **MUST** be signed with an asymmetric algorithm; unsigned tokens (`alg: none`) and shared-secret algorithms **MUST** be refused. Every token **MUST** declare its key (`kid`) and its type (`typ`), and a service **MUST** reject a token of the wrong type. An access token (`typ: at+jwt`) can never be used as a consumer confirmation (`typ: oict-confirmation+jwt`), and the reverse.
+
+The reference server signs with Ed25519 (`alg: EdDSA`), returns an access token for the grant's subject from `POST /v1/grants`, and can also accept tokens from an external authorization server whose keys and issuer it is configured to trust. Access tokens are short-lived (15 minutes by default) and independent of the grant's lifetime: a client whose token expires while its grant is still live obtains a new token from its authorization server, and a revoked grant stops a still-valid token immediately (REV-1).

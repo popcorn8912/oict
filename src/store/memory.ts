@@ -1,4 +1,4 @@
-import type { CatalogItem, CatalogVariant, DraftCart, Grant, Order, Participant, Selection, Session } from "../core/types.ts";
+import type { AuditEvent, CatalogItem, CatalogVariant, DraftCart, Grant, Order, Participant, Selection, Session } from "../core/types.ts";
 import type { CommitOrderInput, CommitOrderResult, IdempotencyRecord, Store } from "./store.ts";
 
 /**
@@ -17,6 +17,7 @@ export class MemoryStore implements Store {
   private orders = new Map<string, Order>();
   private idempotency = new Map<string, IdempotencyRecord>();
   private nonces = new Set<string>();
+  private audit: AuditEvent[] = [];
 
   constructor(catalog: CatalogItem[] = []) {
     this.seed(catalog);
@@ -128,7 +129,21 @@ export class MemoryStore implements Store {
     this.nonces.add(input.nonce);
     this.orders.set(input.order.id, structuredClone(input.order));
     this.idempotency.set(idemKey, { fingerprint: input.fingerprint, orderId: input.order.id });
+    this.audit.push(structuredClone(input.audit));
     return { kind: "created", order: structuredClone(input.order) };
+  }
+
+  async appendAudit(e: AuditEvent) {
+    this.audit.push(structuredClone(e));
+  }
+
+  async listAudit(q: { consumerId: string; applicationId: string; limit: number }) {
+    const out: AuditEvent[] = [];
+    for (let i = this.audit.length - 1; i >= 0 && out.length < q.limit; i--) {
+      const e = this.audit[i]!;
+      if (e.consumerId === q.consumerId && e.applicationId === q.applicationId) out.push(structuredClone(e));
+    }
+    return out;
   }
 
   async reset(catalog: CatalogItem[]) {
@@ -139,6 +154,7 @@ export class MemoryStore implements Store {
     this.orders.clear();
     this.idempotency.clear();
     this.nonces.clear();
+    this.audit = [];
     this.seed(catalog);
   }
 

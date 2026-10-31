@@ -8,6 +8,7 @@
  */
 import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
+import { MIGRATIONS } from "../src/store/postgres/migrations.ts";
 import { call, createTempDatabase, startCluster, type Cluster, type Reply, type TempDatabase } from "./support/cluster.ts";
 
 const ADMIN_URL = process.env.OICT_TEST_DATABASE_URL;
@@ -19,7 +20,9 @@ describe("multiple instances on one PostgreSQL database", { skip: !ADMIN_URL && 
   let n = 0;
   /** Round-robin across instances, like a load balancer. */
   const next = () => cluster.urls[n++ % cluster.urls.length]!;
-  const auth = (g: string) => ({ authorization: `OICT-Grant ${g}` });
+  /** Access tokens by grant id, captured from POST /v1/grants. */
+  const tokens = new Map<string, string>();
+  const auth = (g: string) => ({ authorization: `Bearer ${tokens.get(g)}` });
 
   before(async () => {
     db = await createTempDatabase(ADMIN_URL!);
@@ -46,6 +49,7 @@ describe("multiple instances on one PostgreSQL database", { skip: !ADMIN_URL && 
       }),
       201,
     );
+    tokens.set(grant.id, grant.accessToken);
     const session = ok(await call(next(), "POST", "/v1/sessions", { consumerId: `c-${tag}`, applicationId: "app" }), 201);
     const sel = ok(
       await call(next(), "POST", `/v1/sessions/${session.id}/selection`, { sceneObjectId: "rack", sku: "SYN-HOODIE-01", variantId: "violet-m", quantity: 1 }),
@@ -64,8 +68,9 @@ describe("multiple instances on one PostgreSQL database", { skip: !ADMIN_URL && 
     const health = await Promise.all(cluster.urls.map((u) => call(u, "GET", "/healthz")));
     assert.deepEqual(health.map((h) => h.body.store), Array(INSTANCES).fill("postgres"));
     assert.equal(new Set(health.map((h) => h.instance)).size, INSTANCES);
-    const { rows } = await db.pool.query("SELECT count(*)::int AS n FROM oict_schema_migrations");
-    assert.equal(rows[0]!.n, 1, "migrations ran exactly once despite concurrent start-up");
+    const { rows } = await db.pool.query("SELECT count(*)::int AS n, count(DISTINCT version)::int AS d FROM oict_schema_migrations");
+    assert.equal(rows[0]!.n, MIGRATIONS.length, "each migration ran exactly once despite concurrent start-up");
+    assert.equal(rows[0]!.d, MIGRATIONS.length);
   });
 
   it("retry storms across instances never create a second order (25 rounds × 40 requests)", async () => {
@@ -146,5 +151,32 @@ describe("multiple instances on one PostgreSQL database", { skip: !ADMIN_URL && 
       "SELECT count(*)::int AS bad FROM orders WHERE total_minor <> (snapshot->>'unitPriceMinor')::bigint * (snapshot->>'quantity')::int",
     );
     assert.equal(rows[0]!.bad, 0);
+  });
+
+  it("access tokens and confirmations issued by one instance are accepted by every other", async () => {
+    const jwks = await Promise.all(cluster.urls.map((u) => call(u, "GET", "/.well-known/jwks.json")));
+    const kids = new Set(jwks.map((j) => j.body.keys[0].kid));
+    assert.equal(kids.size, 1, "all instances publish the same signing key");
+  });
+
+  it("writes exactly one audit event per order, in the same transaction, and the trail is append-only", async () => {
+    const counts = (await db.pool.query(
+      `SELECT (SELECT count(*)::int FROM orders) AS orders,
+              (SELECT count(*)::int FROM audit_events WHERE type = 'order.placed') AS placed,
+              (SELECT count(*)::int FROM audit_events e JOIN orders o ON o.id = e.order_id WHERE e.type = 'order.placed') AS linked`,
+    )).rows[0]!;
+    assert.ok(Number(counts.orders) > 0);
+    assert.equal(counts.placed, counts.orders);
+    assert.equal(counts.linked, counts.orders);
+    await assert.rejects(db.pool.query("UPDATE audit_events SET code = 'tampered'"), /append-only/);
+    await assert.rejects(db.pool.query("DELETE FROM audit_events"), /append-only/);
+  });
+
+  it("each instance exposes its own metrics", async () => {
+    for (const u of cluster.urls) {
+      const res = await fetch(`${u}/metrics`);
+      const text = await res.text();
+      assert.match(text, /oict_build_info\{instance="node-\d",store="postgres",version="[\d.]+"\} 1/);
+    }
   });
 });

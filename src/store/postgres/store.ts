@@ -1,4 +1,4 @@
-import type { CatalogItem, CatalogVariant, DraftCart, Grant, Order, Participant, Scope, Selection, Session } from "../../core/types.ts";
+import type { AuditEvent, CatalogItem, CatalogVariant, DraftCart, Grant, Order, Participant, Scope, Selection, Session } from "../../core/types.ts";
 import type { CommitOrderInput, CommitOrderResult, IdempotencyRecord, Store } from "../store.ts";
 import { migrate } from "./migrations.ts";
 import { Pool, type PoolClient, type Queryable } from "./wire.ts";
@@ -74,6 +74,23 @@ function toOrder(r: Row): Order {
     createdAt: Number(r.created_at),
   };
 }
+
+function toAudit(r: Row): AuditEvent {
+  const e: AuditEvent = { id: r.id, at: Number(r.at), type: r.type };
+  const opt: [keyof AuditEvent, string][] = [
+    ["actor", "actor"], ["consumerId", "consumer_id"], ["applicationId", "application_id"], ["grantId", "grant_id"],
+    ["sessionId", "session_id"], ["orderId", "order_id"], ["code", "code"], ["detail", "detail"], ["instance", "instance"], ["requestId", "request_id"],
+  ];
+  for (const [k, col] of opt) if (r[col] !== null && r[col] !== undefined) (e as any)[k] = r[col];
+  return e;
+}
+
+const AUDIT_INSERT = `INSERT INTO audit_events (id, at, type, actor, consumer_id, application_id, grant_id, session_id, order_id, code, detail, instance, request_id)
+  VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11::jsonb, $12, $13)`;
+const auditValues = (e: AuditEvent) => [
+  e.id, e.at, e.type, e.actor ?? null, e.consumerId ?? null, e.applicationId ?? null, e.grantId ?? null, e.sessionId ?? null,
+  e.orderId ?? null, e.code ?? null, e.detail === undefined ? null : JSON.stringify(e.detail), e.instance ?? null, e.requestId ?? null,
+];
 
 export interface PostgresStoreOptions {
   /** Max pooled connections per instance. Default 10. */
@@ -339,14 +356,29 @@ export class PostgresStore implements Store {
       [o.id, o.sessionId, o.consumerId, o.applicationId, o.placedBy, o.grantId, JSON.stringify(o.snapshot),
         o.snapshotHash, o.totalMinor, o.currency, o.createdAt],
     );
+    await c.query(AUDIT_INSERT, auditValues(input.audit));
     return { kind: "created", order: o };
+  }
+
+  // ─────────────────────────────── audit ──────────────────────────────────
+
+  async appendAudit(e: AuditEvent) {
+    await this.pool.query(AUDIT_INSERT, auditValues(e));
+  }
+
+  async listAudit(q: { consumerId: string; applicationId: string; limit: number }) {
+    const { rows } = await this.pool.query<Row>(
+      `SELECT * FROM audit_events WHERE consumer_id = $1 AND application_id = $2 ORDER BY at DESC, id DESC LIMIT $3`,
+      [q.consumerId, q.applicationId, q.limit],
+    );
+    return rows.map(toAudit);
   }
 
   // ─────────────────────────────── admin ──────────────────────────────────
 
   async reset(catalog: CatalogItem[]) {
     await this.pool.query<Row>(
-      `TRUNCATE idempotency_keys, consumed_confirmations, orders, draft_carts, sessions, grants, participants,
+      `TRUNCATE audit_events, idempotency_keys, consumed_confirmations, orders, draft_carts, sessions, grants, participants,
                 catalog_variants, catalog_items RESTART IDENTITY CASCADE`,
     );
     await this.seedCatalog(this.pool, catalog);

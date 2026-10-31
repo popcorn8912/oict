@@ -1,0 +1,60 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/popcorn8912/oict/schemas/audit-event.schema.json",
+  "title": "OICT Audit Event",
+  "description": "One append-only audit record (spec/07).",
+  "type": "object",
+  "required": [
+    "id",
+    "at",
+    "type"
+  ],
+  "properties": {
+    "id": {
+      "type": "string"
+    },
+    "at": {
+      "type": "integer",
+      "description": "epoch ms"
+    },
+    "type": {
+      "enum": [
+        "grant.issued",
+        "grant.revoked",
+        "cart.prepared",
+        "order.placed",
+        "order.refused"
+      ]
+    },
+    "actor": {
+      "type": "string"
+    },
+    "consumerId": {
+      "type": "string"
+    },
+    "applicationId": {
+      "type": "string"
+    },
+    "grantId": {
+      "type": "string"
+    },
+    "sessionId": {
+      "type": "string"
+    },
+    "orderId": {
+      "type": "string"
+    },
+    "code": {
+      "type": "string"
+    },
+    "detail": {
+      "type": "object"
+    },
+    "instance": {
+      "type": "string"
+    },
+    "requestId": {
+      "type": "string"
+    }
+  }
+}

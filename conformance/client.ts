@@ -9,6 +9,14 @@ export interface Resp {
   headers: Headers;
 }
 
+/**
+ * Access tokens returned by POST /v1/grants, keyed by grant id. Requests made
+ * "as" a grant send its Bearer token; an implementation that issues no tokens
+ * falls back to the legacy `OICT-Grant <id>` header.
+ */
+const tokens = new Map<string, string>();
+export const tokenFor = (grantId: string) => tokens.get(grantId);
+
 export class Client {
   readonly base: string;
   constructor(base: string) {
@@ -28,7 +36,11 @@ export class Client {
     } catch {
       parsed = text;
     }
-    return { status: res.status, body: parsed, headers: res.headers };
+    const out = { status: res.status, body: parsed as any, headers: res.headers };
+    if (method === "POST" && path === "/v1/grants" && res.status === 201 && typeof out.body?.accessToken === "string") {
+      tokens.set(out.body.id, out.body.accessToken);
+    }
+    return out;
   }
 
   post(path: string, body?: unknown, headers?: Record<string, string>) {
@@ -39,7 +51,10 @@ export class Client {
   }
 }
 
-export const auth = (grantId: string) => ({ authorization: `OICT-Grant ${grantId}` });
+export const auth = (grantId: string) => {
+  const t = tokens.get(grantId);
+  return { authorization: t ? `Bearer ${t}` : `OICT-Grant ${grantId}` };
+};
 export const idem = (key: string) => ({ "idempotency-key": key });
 
 let keyCounter = 0;

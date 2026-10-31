@@ -1,6 +1,8 @@
 # 07 · Security Considerations
 
-**Token secrets.** Confirmation tokens are only as strong as the key that signs them. Deployments **MUST** keep signing keys in a managed secret store, **SHOULD** rotate them, and **SHOULD** use asymmetric signatures (JWS) when tokens must be verified by a party other than the issuer.
+**Signing keys.** Confirmations and access tokens are only as strong as the keys that sign them. Deployments **MUST** keep private keys in a managed secret store and **SHOULD** rotate them, publishing the previous public key until its tokens have expired (STB-9). Because signatures are asymmetric, anyone can verify a confirmation from the published keys, but only the service can issue one.
+
+**Audit trail.** A service **SHOULD** record, append-only, every grant issued or revoked, every draft cart, every order and every refused order attempt, with the acting participant and the consumer it acted for. The order record **SHOULD** be written atomically with the order itself, so the trail cannot miss a purchase. The reference server stores this in an `audit_events` table guarded by a database trigger that refuses updates and deletes, and lets a consumer's authorized application read the consumer's own trail.
 
 **Replay.** Single-use nonces (IDM-4) and short expiry (STB-6) limit replay. The nonce store **MUST** be shared by every instance that can place orders; otherwise a replay can succeed on a different node. The reference server meets this with a primary key in PostgreSQL; see [docs/deployment.md](../docs/deployment.md).
 
@@ -16,4 +18,4 @@
 
 **Denial of service.** Idempotency and nonce stores grow with traffic. Records **SHOULD** expire after their retention window, and request bodies **SHOULD** be size-limited (the reference server accepts at most 64 KiB).
 
-**Reference server scope.** The reference server identifies grants with a simplified header and, in its default mode, keeps state in memory with a per-process secret. With `OICT_DATABASE_URL` and a shared `OICT_SECRET` it runs as many instances on PostgreSQL. It remains a correctness reference and a conformance target, **not** a production service.
+**Reference server scope.** In its default mode the reference server keeps state in memory and signs with a per-process key. With `OICT_DATABASE_URL` and a shared `OICT_SIGNING_KEY` it runs as many instances on PostgreSQL. It acts as its own authorization server for convenience, and does not authenticate consumers themselves, which is the platform's job. It remains a correctness reference and a conformance target, **not** a production service.

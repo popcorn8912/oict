@@ -1,4 +1,4 @@
-import type { CatalogItem, CatalogVariant, DraftCart, Grant, Order, Participant, Selection, Session } from "../core/types.ts";
+import type { AuditEvent, CatalogItem, CatalogVariant, DraftCart, Grant, Order, Participant, Selection, Session } from "../core/types.ts";
 
 /**
  * Versions the order must still match at the instant it is committed (STB-7).
@@ -24,6 +24,8 @@ export interface CommitOrderInput {
   /** Digest of the request; same key + different fingerprint = IDEMPOTENCY_KEY_REUSED (IDM-3). */
   fingerprint: string;
   expect: CommitExpectation;
+  /** Written in the same transaction as the order, so the trail can never miss an order. */
+  audit: AuditEvent;
 }
 
 export type CommitOrderResult =
@@ -71,6 +73,11 @@ export interface Store {
   getOrder(id: string): Promise<Order | undefined>;
   getIdempotency(grantId: string, key: string): Promise<IdempotencyRecord | undefined>;
   commitOrder(input: CommitOrderInput): Promise<CommitOrderResult>;
+
+  /** Append-only: implementations MUST NOT offer update or delete. */
+  appendAudit(e: AuditEvent): Promise<void>;
+  /** Newest first. */
+  listAudit(q: { consumerId: string; applicationId: string; limit: number }): Promise<AuditEvent[]>;
 
   /** Test hook: drop all state and reseed the catalog. */
   reset(catalog: CatalogItem[]): Promise<void>;

@@ -2,6 +2,7 @@ export * from "./core/types.ts";
 export { OictEngine } from "./core/engine.ts";
 export type { EngineOptions, IssueGrantInput, ConfirmInput, PlaceOrderInput, PlaceOrderResult } from "./core/engine.ts";
 export { canonicalJson, digest } from "./core/crypto.ts";
+export { KeyRing, loadSigningKey, thumbprint, TOKEN_TYPES } from "./core/jose.ts";
 export { SYNTHETIC_CATALOG } from "./core/fixtures.ts";
 export { isAgentResponseCurrent, bindAgentResponse } from "./core/agent-binding.ts";
 export type { BoundAgentResponse, SelectionView } from "./core/agent-binding.ts";

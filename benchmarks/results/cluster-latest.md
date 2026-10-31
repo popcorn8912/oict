@@ -8,11 +8,11 @@
 | Orders in database | **600** |
 | Duplicate orders | **0** |
 | Orders priced differently from the confirmation | 0 |
-| Order requests sent | 2804 |
-| Created / replayed / blocked as already used | 600 / 332 / 1437 |
-| Re-confirms after price races | 146 |
+| Order requests sent | 2860 |
+| Created / replayed / blocked as already used | 600 / 302 / 1444 |
+| Re-confirms after price races | 172 |
 | Unexpected errors | 0 |
-| Order latency p50 / p95 / p99 | 120.3 / 250.1 / 300.7 ms |
-| Throughput | 758 req/s |
+| Order latency p50 / p95 / p99 | 199.2 / 380.4 / 467.5 ms |
+| Throughput | 486 req/s |
 
 Reproduce with `npm run bench:cluster`. Single-machine run with synthetic data: correctness results are the point; latency is indicative only.

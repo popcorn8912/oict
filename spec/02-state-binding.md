@@ -41,9 +41,11 @@ When the consumer presses *buy*, the client sends the snapshot hash it was rende
 
 On success the service issues a **confirmation token** that binds `sessionId`, `consumerId`, `snapshotHash`, `stateVersion`, `totalMinor`, `currency`, optional `guardianConsentRef`, issue and expiry times and a unique `nonce`. See [`schemas/confirmation-claims.schema.json`](../schemas/confirmation-claims.schema.json).
 
-**STB-5.** Confirmation tokens **MUST** be integrity-protected (the reference server uses HMAC-SHA-256; a deployment **MAY** use JWS). A token that is malformed, altered, or bound to a different session **MUST** fail with `CONFIRMATION_INVALID`.
+**STB-5.** Confirmation tokens **MUST** be compact JWS with an asymmetric signature and `typ: oict-confirmation+jwt` (the reference server uses Ed25519, `alg: EdDSA`). The claims **MUST** include the issuing service (`iss`). A token that is malformed, altered, of another type, from another issuer, or bound to a different session **MUST** fail with `CONFIRMATION_INVALID`.
 
 **STB-6.** Confirmation tokens **MUST** expire. A lifetime of 120 seconds is **RECOMMENDED**; it **MUST NOT** exceed 300 seconds. Expired tokens fail with `CONFIRMATION_EXPIRED`.
+
+**STB-9.** A service that issues confirmations **SHOULD** publish its verification keys as a JWK Set at `/.well-known/jwks.json`. Platforms, applications and auditors can then check, without any shared secret, that an order was backed by a confirmation of exactly the snapshot the consumer saw. During key rotation the set keeps the previous key until every token it signed has expired.
 
 ## 2.5 Order placement
 

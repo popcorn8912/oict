@@ -1,6 +1,6 @@
 {
   "name": "oict",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Open Immersive Commerce Transaction Framework: a transaction-integrity layer for real-world purchases inside games, 3D worlds, AR/VR and AI shopping agents. Runs in memory or on PostgreSQL across many instances.",
   "type": "module",
   "license": "Apache-2.0",
@@ -39,7 +39,9 @@
     "ai-agents",
     "consumer-protection",
     "postgresql",
-    "distributed-systems"
+    "distributed-systems",
+    "jwt",
+    "observability"
   ],
   "devDependencies": {
     "@types/node": "^22.10.0",

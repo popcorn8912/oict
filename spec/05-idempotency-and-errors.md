@@ -35,6 +35,7 @@ Implementations **SHOULD** retain idempotency records for at least 24 hours. The
 |---|---:|---|
 | `BAD_REQUEST` | 400 | malformed input, ERR-2, MPA-6 |
 | `UNKNOWN_GRANT` | 401 | MPA-1 |
+| `UNAUTHENTICATED` | 401 | MPA-7, MPA-8 |
 | `GRANT_INACTIVE` | 401 | REV-1, REV-2, REV-3 |
 | `SCOPE_INSUFFICIENT` | 403 | MPA-2, AGT-1 |
 | `APPLICATION_MISMATCH` | 403 | MPA-3 |

@@ -12,8 +12,8 @@ authors:
   - family-names: Zhang
     given-names: Cirun
 license: Apache-2.0
-version: 0.2.0
-date-released: 2026-10-30
+version: 0.3.0
+date-released: 2026-10-31
 repository-code: "https://github.com/popcorn8912/oict"
 keywords:
   - immersive commerce

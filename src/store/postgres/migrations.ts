@@ -109,6 +109,32 @@ export const MIGRATIONS: { version: number; name: string; sql: string }[] = [
       CREATE INDEX idempotency_keys_created_idx ON idempotency_keys (created_at);
     `,
   },
+  {
+    version: 2,
+    name: "append-only audit trail",
+    sql: `
+      CREATE TABLE audit_events (
+        id              text PRIMARY KEY,
+        at              bigint NOT NULL,
+        type            text NOT NULL CHECK (type IN ('grant.issued','grant.revoked','cart.prepared','order.placed','order.refused')),
+        actor           text,
+        consumer_id     text,
+        application_id  text,
+        grant_id        text,
+        session_id      text,
+        order_id        text,
+        code            text,
+        detail          jsonb,
+        instance        text,
+        request_id      text
+      );
+      CREATE INDEX audit_events_consumer_idx ON audit_events (consumer_id, application_id, at DESC);
+
+      -- Rows can be added, never changed or removed.
+      CREATE FUNCTION oict_audit_append_only() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'audit_events is append-only'; END $$;
+      CREATE TRIGGER audit_events_append_only BEFORE UPDATE OR DELETE ON audit_events FOR EACH ROW EXECUTE FUNCTION oict_audit_append_only();
+    `,
+  },
 ];
 
 const LOCK_KEY = 0x01c7; // arbitrary, stable advisory-lock id for OICT migrations

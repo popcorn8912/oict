@@ -2,10 +2,11 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/popcorn8912/oict/schemas/confirmation-claims.schema.json",
   "title": "OICT Confirmation Claims",
-  "description": "Payload of a confirmation token (STB-5).",
+  "description": "Payload of a confirmation token: compact JWS, alg EdDSA, typ oict-confirmation+jwt (STB-5).",
   "type": "object",
   "required": [
     "v",
+    "iss",
     "sessionId",
     "consumerId",
     "snapshotHash",
@@ -19,6 +20,10 @@
   "properties": {
     "v": {
       "const": 1
+    },
+    "iss": {
+      "type": "string",
+      "description": "Issuing service (STB-5)."
     },
     "sessionId": {
       "type": "string"

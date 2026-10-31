@@ -2,6 +2,24 @@
 
 All notable changes to the OICT specification and reference implementation. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [SemVer](https://semver.org/).
 
+## [0.3.0] — 2026-10-31
+
+### Security
+- **Signed access tokens replace bare grant ids.** Grant-scoped requests now require `Authorization: Bearer <JWT>` (RFC 9068 shape with `grant_id`). The service verifies signature, issuer, audience and lifetime, and refuses any caller who is not the grant's subject (new rules MPA-7, MPA-8). Knowing a grant id is no longer enough to spend under it.
+- **Confirmations are Ed25519-signed JWS** (`typ: oict-confirmation+jwt`). Anyone can verify them from `/.well-known/jwks.json` (new rule STB-9); only the service can issue them.
+- Strict JOSE handling: EdDSA only (no `alg: none`, no shared-secret algorithms), mandatory `kid` and `typ`, so tokens cannot be confused across types.
+- Key rotation: extra verification keys from a JWK Set; trusting an external authorization server's issuer and keys.
+
+### Added
+- Append-only audit trail (`audit_events`, protected by a database trigger): grants issued and revoked, draft carts, orders, and refused order attempts with their reason. The order event is written in the same transaction as the order. `GET /v1/audit` returns a consumer's own trail.
+- Prometheus metrics at `/metrics`: requests by route template and status, latency histogram, orders created and replayed, refusals by OICT error code, build info.
+- Structured JSON access logs with request ids; `X-Request-Id` is propagated to responses and audit events.
+- 7 conformance cases (46 total), auth and observability tests, multi-instance checks for shared keys, audit atomicity and append-only enforcement.
+
+### Changed
+- `OICT_SECRET` is replaced by `OICT_SIGNING_KEY` (64 hex characters or a PEM Ed25519 key). `OICT_SECRET` is still read as a deprecated alias.
+- The legacy `Authorization: OICT-Grant <id>` header is refused unless `OICT_ALLOW_GRANT_HEADER=1`.
+
 ## [0.2.0] — 2026-10-30
 
 ### Added

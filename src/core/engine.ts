@@ -1,11 +1,15 @@
 import { randomBytes } from "node:crypto";
 import { MemoryStore } from "../store/memory.ts";
 import type { Store } from "../store/store.ts";
-import { digest, randomId, signToken, verifyToken } from "./crypto.ts";
+import { digest, randomId } from "./crypto.ts";
+import { KeyRing, TOKEN_TYPES } from "./jose.ts";
 import {
   AGENT_FORBIDDEN_SCOPES,
   ALL_SCOPES,
   OictError,
+  type AccessTokenClaims,
+  type AuditEvent,
+  type Caller,
   type CatalogItem,
   type CatalogVariant,
   type ConfirmationClaims,
@@ -23,10 +27,23 @@ export interface EngineOptions {
   /** Where state lives. Defaults to an in-process MemoryStore. */
   store?: Store;
   /**
-   * HMAC secret for confirmation tokens. Every instance that shares a store
-   * MUST share this secret. Random per process when omitted.
+   * Signs confirmations and access tokens and verifies incoming ones. Every
+   * instance that shares a store MUST share the signing key. A random key per
+   * process is used when omitted (single-instance development only).
    */
-  secret?: Buffer;
+  keys?: KeyRing;
+  /** `iss` of tokens this service signs. Default "urn:oict:reference". */
+  issuer?: string;
+  /** Issuers whose access tokens are accepted. Default: this service only. */
+  trustedIssuers?: string[];
+  /** Required `aud` of access tokens. Default "oict". */
+  audience?: string;
+  /** Lifetime of access tokens this service issues. Default 900 s. */
+  accessTokenTtlSeconds?: number;
+  /** Accept the legacy `Authorization: OICT-Grant <id>` header (local testing only). Default false. */
+  allowGrantHeader?: boolean;
+  /** Adds request-scoped fields (request id, instance) to audit events. */
+  auditContext?: () => { requestId?: string; instance?: string };
   /** Clock in epoch milliseconds; injectable for deterministic tests. */
   now?: () => number;
   /** Lifetime of a consumer confirmation (spec/02 STB-6). Default 120 s. */
@@ -58,6 +75,10 @@ export interface ConfirmInput {
 
 export interface PlaceOrderInput {
   grantId: string;
+  /** Authenticated principal; checked against the grant's subject when present. */
+  subject?: string;
+  /** Scopes carried by the access token. */
+  scopes?: string[];
   idempotencyKey?: string;
   sessionId: string;
   confirmationToken: string;
@@ -76,17 +97,95 @@ export interface PlaceOrderResult {
  */
 export class OictEngine {
   readonly store: Store;
-  private readonly secret: Buffer;
+  readonly keys: KeyRing;
+  readonly issuer: string;
+  private readonly trustedIssuers: Set<string>;
+  private readonly audience: string;
+  private readonly accessTtlMs: number;
+  private readonly allowGrantHeader: boolean;
+  private readonly auditContext: () => { requestId?: string; instance?: string };
   private readonly now: () => number;
   private readonly confirmationTtlMs: number;
   private readonly teenLimit: number;
 
   constructor(opts: EngineOptions = {}) {
     this.store = opts.store ?? new MemoryStore(opts.catalog ?? []);
-    this.secret = opts.secret ?? randomBytes(32);
+    this.keys = opts.keys ?? KeyRing.ephemeral();
+    this.issuer = opts.issuer ?? "urn:oict:reference";
+    this.trustedIssuers = new Set(opts.trustedIssuers ?? [this.issuer]);
+    this.audience = opts.audience ?? "oict";
+    this.accessTtlMs = (opts.accessTokenTtlSeconds ?? 900) * 1000;
+    this.allowGrantHeader = opts.allowGrantHeader ?? false;
+    this.auditContext = opts.auditContext ?? (() => ({}));
     this.now = opts.now ?? Date.now;
     this.confirmationTtlMs = (opts.confirmationTtlSeconds ?? 120) * 1000;
     this.teenLimit = opts.teenUnassistedLimitMinor ?? 5000;
+  }
+
+  // ─────────────────────────── authentication ─────────────────────────────
+
+  /**
+   * MPA-1 / spec 01 §1.5: turn an Authorization header into a Caller.
+   * `Bearer <JWT>` is verified (signature, type, issuer, audience, lifetime);
+   * the grant subject check happens when the grant is loaded.
+   */
+  authenticate(authorization: string | undefined): Caller {
+    const header = (authorization ?? "").trim();
+    if (!header) throw new OictError("UNKNOWN_GRANT", "missing Authorization header");
+    const bearer = /^Bearer\s+(\S+)$/i.exec(header);
+    if (bearer) {
+      const c = this.keys.verify<AccessTokenClaims>(TOKEN_TYPES.access, bearer[1]!);
+      if (!c) throw new OictError("UNAUTHENTICATED", "access token signature, type or key is invalid");
+      const now = Math.floor(this.now() / 1000);
+      const aud = Array.isArray(c.aud) ? c.aud : [c.aud];
+      if (!this.trustedIssuers.has(c.iss)) throw new OictError("UNAUTHENTICATED", "access token issuer is not trusted");
+      if (!aud.includes(this.audience)) throw new OictError("UNAUTHENTICATED", "access token audience does not include this service");
+      if (typeof c.exp !== "number" || c.exp <= now) throw new OictError("UNAUTHENTICATED", "access token has expired");
+      if (typeof c.nbf === "number" && c.nbf > now + 5) throw new OictError("UNAUTHENTICATED", "access token is not valid yet");
+      if (typeof c.sub !== "string" || typeof c.grant_id !== "string") {
+        throw new OictError("UNAUTHENTICATED", "access token must carry sub and grant_id");
+      }
+      return { grantId: c.grant_id, subject: c.sub, scopes: typeof c.scope === "string" ? c.scope.split(" ").filter(Boolean) : undefined };
+    }
+    const legacy = /^OICT-Grant\s+(\S+)$/i.exec(header);
+    if (legacy && this.allowGrantHeader) return { grantId: legacy[1]! };
+    throw new OictError("UNAUTHENTICATED", "use Authorization: Bearer <access token>");
+  }
+
+  /** Issue an access token for a grant's subject (the reference server acts as its own authorization server). */
+  issueAccessToken(grant: Grant): { accessToken: string; tokenType: "Bearer"; expiresIn: number; scope: string } {
+    const iat = Math.floor(this.now() / 1000);
+    const ttl = Math.floor(this.accessTtlMs / 1000);
+    const claims: AccessTokenClaims = {
+      iss: this.issuer,
+      sub: grant.subject,
+      aud: this.audience,
+      iat,
+      exp: iat + ttl,
+      jti: randomId("at"),
+      client_id: grant.application,
+      scope: grant.scopes.join(" "),
+      grant_id: grant.id,
+    };
+    return { accessToken: this.keys.sign(TOKEN_TYPES.access, claims), tokenType: "Bearer", expiresIn: ttl, scope: claims.scope! };
+  }
+
+  // ─────────────────────────────── audit ─────────────────────────────────
+
+  private event(type: AuditEvent["type"], fields: Omit<AuditEvent, "id" | "at" | "type">): AuditEvent {
+    const ctx = this.auditContext();
+    return { id: randomId("evt"), at: this.now(), type, ...fields, ...stripUndefined(ctx) };
+  }
+
+  private async audit(type: AuditEvent["type"], fields: Omit<AuditEvent, "id" | "at" | "type">): Promise<void> {
+    await this.store.appendAudit(this.event(type, fields));
+  }
+
+  /** The audit trail for the token's consumer within its application, newest first. */
+  async listAudit(caller: Caller | string | undefined, limit = 50): Promise<AuditEvent[]> {
+    const { grant, rootConsumerId } = await this.activeGrant(caller, "order:read");
+    const n = Math.max(1, Math.min(200, Math.floor(limit) || 50));
+    return this.store.listAudit({ consumerId: rootConsumerId, applicationId: grant.application, limit: n });
   }
 
   // ───────────────────────────── participants ─────────────────────────────
@@ -203,6 +302,13 @@ export class OictEngine {
       maxOrderTotalMinor,
     };
     await this.store.insertGrant(grant);
+    await this.audit("grant.issued", {
+      actor: issuer.id,
+      consumerId: rootConsumerId,
+      applicationId: app.id,
+      grantId: grant.id,
+      detail: stripUndefined({ subject: subject.id, scopes: grant.scopes, parentGrantId: grant.parentGrantId, expiresAt: grant.expiresAt }),
+    });
     return stripUndefined(grant);
   }
 
@@ -214,7 +320,9 @@ export class OictEngine {
     if (by !== grant.issuer && by !== chain[chain.length - 1]!.issuer) {
       throw new OictError("PRINCIPAL_MISMATCH", "only the issuer or the consumer may revoke a grant");
     }
-    return stripUndefined((await this.store.revokeGrant(grantId, this.now()))!);
+    const revoked = (await this.store.revokeGrant(grantId, this.now()))!;
+    await this.audit("grant.revoked", { actor: by, consumerId: chain[chain.length - 1]!.issuer, applicationId: grant.application, grantId });
+    return stripUndefined(revoked);
   }
 
   /** A grant is active only if it and every ancestor is unrevoked and unexpired. */
@@ -230,12 +338,18 @@ export class OictEngine {
     return this.chainActive(await this.store.getGrantChain(grantId));
   }
 
-  private async activeGrant(grantId: string | undefined, scope: Scope): Promise<{ grant: Grant; rootConsumerId: string }> {
-    const chain = grantId ? await this.store.getGrantChain(grantId) : [];
+  private async activeGrant(callerOrId: Caller | string | undefined, scope: Scope): Promise<{ grant: Grant; rootConsumerId: string }> {
+    const caller: Caller | undefined = typeof callerOrId === "string" ? { grantId: callerOrId } : callerOrId;
+    const chain = caller?.grantId ? await this.store.getGrantChain(caller.grantId) : [];
     const grant = chain[0];
     if (!grant) throw new OictError("UNKNOWN_GRANT", "missing or unknown grant");
+    // Spec 01 §1.5: only the grant's subject may use it. Knowing a grant id is not enough.
+    if (caller?.subject !== undefined && caller.subject !== grant.subject) {
+      throw new OictError("UNAUTHENTICATED", "the access token was not issued to this grant's subject");
+    }
     if (!this.chainActive(chain)) throw new OictError("GRANT_INACTIVE", "grant is revoked or expired");
     if (!grant.scopes.includes(scope)) throw new OictError("SCOPE_INSUFFICIENT", `grant lacks ${scope}`);
+    if (caller?.scopes && !caller.scopes.includes(scope)) throw new OictError("SCOPE_INSUFFICIENT", `access token lacks ${scope}`);
     return { grant, rootConsumerId: chain[chain.length - 1]!.issuer };
   }
 
@@ -328,8 +442,8 @@ export class OictEngine {
   // ───────────────────────────── agent carts ──────────────────────────────
 
   /** AGT-2/AGT-3: an agent may draft a cart, bound to the state version it saw. */
-  async prepareCart(grantId: string | undefined, sessionId: string, stateVersion: number): Promise<DraftCart> {
-    const { grant, rootConsumerId } = await this.activeGrant(grantId, "cart:write");
+  async prepareCart(caller: Caller | string | undefined, sessionId: string, stateVersion: number): Promise<DraftCart> {
+    const { grant, rootConsumerId } = await this.activeGrant(caller, "cart:write");
     const session = await this.session(sessionId);
     this.assertGrantCoversSession(grant, rootConsumerId, session);
     if (stateVersion !== session.stateVersion) {
@@ -346,6 +460,10 @@ export class OictEngine {
       createdAt: this.now(),
     };
     await this.store.insertCart(cart);
+    await this.audit("cart.prepared", {
+      actor: grant.subject, consumerId: rootConsumerId, applicationId: grant.application, grantId: grant.id, sessionId,
+      detail: { stateVersion, snapshotHash: cart.snapshotHash },
+    });
     return cart;
   }
 
@@ -373,6 +491,7 @@ export class OictEngine {
     const iat = this.now();
     const claims: ConfirmationClaims = {
       v: 1,
+      iss: this.issuer,
       sessionId: session.id,
       consumerId: consumer.id,
       snapshotHash: currentHash,
@@ -384,7 +503,7 @@ export class OictEngine {
       exp: iat + this.confirmationTtlMs,
       nonce: randomBytes(12).toString("base64url"),
     };
-    return { token: signToken(claims, this.secret), claims, snapshot };
+    return { token: this.keys.sign(TOKEN_TYPES.confirmation, stripUndefined(claims)), claims, snapshot };
   }
 
   private assertMinorPolicy(consumer: Participant, totalMinor: number, guardianConsentRef?: string): void {
@@ -399,6 +518,22 @@ export class OictEngine {
   // ──────────────────────────────── orders ────────────────────────────────
 
   async placeOrder(input: PlaceOrderInput): Promise<PlaceOrderResult> {
+    const seen: { grant?: Grant; rootConsumerId?: string } = {};
+    try {
+      return await this.placeOrderInner(input, seen);
+    } catch (err) {
+      // Refusals after the caller is known go to the audit trail: "the agent tried to buy" is worth keeping.
+      if (err instanceof OictError && seen.grant) {
+        await this.audit("order.refused", {
+          actor: seen.grant.subject, consumerId: seen.rootConsumerId, applicationId: seen.grant.application,
+          grantId: seen.grant.id, sessionId: input.sessionId, code: err.code,
+        }).catch(() => {});
+      }
+      throw err;
+    }
+  }
+
+  private async placeOrderInner(input: PlaceOrderInput, seen: { grant?: Grant; rootConsumerId?: string }): Promise<PlaceOrderResult> {
     // IDM-1: no key, no order.
     const key = input.idempotencyKey;
     if (!key || key.length < 8 || key.length > 255) {
@@ -409,7 +544,10 @@ export class OictEngine {
     const prior = await this.store.getIdempotency(input.grantId, key);
     if (prior) return this.replay(prior.fingerprint, fingerprint, prior.orderId);
 
-    const { grant, rootConsumerId } = await this.activeGrant(input.grantId, "order:place");
+    const caller: Caller = { grantId: input.grantId, subject: input.subject, scopes: input.scopes };
+    const { grant, rootConsumerId } = await this.activeGrant(caller, "order:place");
+    seen.grant = grant;
+    seen.rootConsumerId = rootConsumerId;
     const placer = await this.participant(grant.subject);
     if (placer.kind === "agent") {
       throw new OictError("AGENT_FORBIDDEN", "agents may prepare carts but never place orders");
@@ -417,8 +555,8 @@ export class OictEngine {
     const session = await this.session(input.sessionId);
     this.assertGrantCoversSession(grant, rootConsumerId, session);
 
-    const claims = verifyToken<ConfirmationClaims>(input.confirmationToken ?? "", this.secret);
-    if (!claims || claims.v !== 1 || claims.sessionId !== session.id) {
+    const claims = this.keys.verify<ConfirmationClaims>(TOKEN_TYPES.confirmation, input.confirmationToken ?? "");
+    if (!claims || claims.v !== 1 || claims.iss !== this.issuer || claims.sessionId !== session.id) {
       throw new OictError("CONFIRMATION_INVALID", "confirmation token is malformed, forged or for another session");
     }
     if (claims.consumerId !== session.consumerId) {
@@ -467,6 +605,11 @@ export class OictEngine {
         variantVersion: snapshot.variantVersion,
         priceVersion: snapshot.priceVersion,
       },
+      audit: this.event("order.placed", {
+        actor: grant.subject, consumerId: rootConsumerId, applicationId: grant.application, grantId: grant.id,
+        sessionId: session.id, orderId: order.id,
+        detail: { totalMinor: order.totalMinor, currency: order.currency, snapshotHash: currentHash },
+      }),
     });
     switch (result.kind) {
       case "created":
@@ -491,8 +634,8 @@ export class OictEngine {
     return { order, replayed: true };
   }
 
-  async getOrder(orderId: string, grantId: string | undefined): Promise<Order> {
-    const { grant, rootConsumerId } = await this.activeGrant(grantId, "order:read");
+  async getOrder(orderId: string, caller: Caller | string | undefined): Promise<Order> {
+    const { grant, rootConsumerId } = await this.activeGrant(caller, "order:read");
     const order = await this.store.getOrder(orderId);
     if (!order || order.applicationId !== grant.application || order.consumerId !== rootConsumerId) {
       throw new OictError("NOT_FOUND", "order not found");

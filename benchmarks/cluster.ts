@@ -99,14 +99,14 @@ try {
         issuer: id, subject: "app", application: "app", scopes: ["order:place", "order:read"], ttlSeconds: 3600,
       });
       const s = await req(node(), "POST", "/v1/sessions", { consumerId: id, applicationId: "app" });
-      return { id, grant: g.body.id as string, session: s.body.id as string };
+      return { id, grant: g.body.id as string, token: g.body.accessToken as string, session: s.body.id as string };
     }),
   );
 
   const t0 = performance.now();
   await Promise.all(
     shoppers.map(async (sh) => {
-      const auth = { authorization: `OICT-Grant ${sh.grant}` };
+      const auth = { authorization: `Bearer ${sh.token}` };
       for (let k = 0; k < PURCHASES; k++) {
         const start = performance.now();
         const [sku, variantId] = pick(VARIANTS);
@@ -189,7 +189,7 @@ try {
 
   const result = {
     benchmark: "oict-cluster",
-    version: "0.2.0",
+    version: "0.3.0",
     config: { instances: INSTANCES, shoppers: SHOPPERS, purchasesPerShopper: PURCHASES, stormSize: STORM, priceRaceShare: PRICE_RACE, seed: SEED },
     database: { intended, stored, duplicateOrders: dupes, priceMismatches: priceMismatch },
     outcomes,

@@ -58,7 +58,7 @@ jobs:
         run: npm run test:cluster
       - name: Conformance suite on PostgreSQL
         run: |
-          export OICT_DATABASE_URL="$OICT_TEST_DATABASE_URL" OICT_SECRET="$(openssl rand -hex 32)" OICT_TEST_HOOKS=1 PORT=8787
+          export OICT_DATABASE_URL="$OICT_TEST_DATABASE_URL" OICT_SIGNING_KEY="$(openssl rand -hex 32)" OICT_TEST_HOOKS=1 PORT=8787
           node src/server/main.ts > server.log 2>&1 &
           for i in $(seq 1 30); do curl -sf localhost:8787/healthz >/dev/null && break; sleep 1; done
           node conformance/cli.ts --target http://localhost:8787 --compact --json conformance-postgres.json

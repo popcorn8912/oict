@@ -1,6 +1,6 @@
 {
   "benchmark": "oict-cluster",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "config": {
     "instances": 3,
     "shoppers": 40,
@@ -17,28 +17,28 @@
   },
   "outcomes": {
     "created": 600,
-    "replayed": 332,
-    "consumed": 1437,
-    "staleRetries": 146,
+    "replayed": 302,
+    "consumed": 1444,
+    "staleRetries": 172,
     "otherErrors": 0,
-    "requests": 5047
+    "requests": 5162
   },
   "latencyMs": {
     "order": {
-      "p50": 120.25474499999928,
-      "p95": 250.14611800000011,
-      "p99": 300.74831800000015
+      "p50": 199.20393200000035,
+      "p95": 380.3744229999993,
+      "p99": 467.50612500000034
     },
     "purchase": {
-      "p50": 385.55680200000006,
-      "p95": 757.484547
+      "p50": 616.9778689999994,
+      "p95": 1330.485588
     }
   },
-  "throughputRps": 758.1337266510477,
+  "throughputRps": 485.67940903748126,
   "requestsPerInstance": {
-    "node-1": 1668,
-    "node-2": 1742,
-    "node-3": 1637
+    "node-1": 1715,
+    "node-2": 1776,
+    "node-3": 1671
   },
   "pass": true,
   "note": "Local run on a single machine with synthetic data; latency depends on hardware and is indicative only."

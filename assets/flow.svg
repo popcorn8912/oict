@@ -65,7 +65,7 @@
     <g transform="translate(548 296)"><circle r="5" fill="#FF8BD1"/><text x="16" y="5">Minors protected</text></g>
   </g>
   <path d="M528 200 H752" stroke="#B490FF" stroke-width="2" stroke-dasharray="2 8" opacity=".7"/>
-  <text x="640" y="358" fill="#8F89BD" font-size="13" text-anchor="middle" class="mono">39 conformance checks</text>
+  <text x="640" y="358" fill="#8F89BD" font-size="13" text-anchor="middle" class="mono">46 conformance checks</text>
 
   <!-- destination -->
   <rect x="1000" y="150" width="220" height="100" rx="20" fill="#1F1A48" stroke="#3A3277"/>

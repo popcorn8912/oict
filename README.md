@@ -4,7 +4,7 @@
 
 <p align="center">
   <a href="https://github.com/popcorn8912/oict/actions/workflows/ci.yml"><img alt="CI" src="https://img.shields.io/github/actions/workflow/status/popcorn8912/oict/ci.yml?branch=main&style=flat-square&label=ci&labelColor=1F1A48&color=7CF2B0"></a>
-  <img alt="Conformance 46/46" src="https://img.shields.io/badge/conformance-46%2F46-7CF2B0?style=flat-square&labelColor=1F1A48">
+  <img alt="Conformance 57/57" src="https://img.shields.io/badge/conformance-57%2F57-7CF2B0?style=flat-square&labelColor=1F1A48">
   <img alt="Anomaly detection 100% in benchmark" src="https://img.shields.io/badge/anomaly%20detection-100%25%20(sim)-B490FF?style=flat-square&labelColor=1F1A48">
   <img alt="Zero runtime dependencies" src="https://img.shields.io/badge/runtime%20deps-0-5EE7DF?style=flat-square&labelColor=1F1A48">
   <img alt="PostgreSQL, multi-instance" src="https://img.shields.io/badge/PostgreSQL-multi--instance-9FB8FF?style=flat-square&labelColor=1F1A48">
@@ -16,6 +16,7 @@
 
 <p align="center">
   <b><a href="https://popcorn8912.github.io/oict/#playground">Live playground</a></b> ·
+  <a href="clients/">Sample clients</a> ·
   <a href="spec/README.md">Specification</a> ·
   <a href="docs/quickstart.md">Quickstart</a> ·
   <a href="conformance/cases.ts">Conformance cases</a> ·
@@ -58,7 +59,14 @@ npm run demo        # Node.js ≥ 22.18 — nothing to install
      ✔ same key → same order ord_J-NMyBdXbT40 (replay: true)
      ⛔ regenerated key → CONFIRMATION_CONSUMED — one tap, one order
 
-  ✔ 1 intended order. 0 unintended orders.
+  8. Next visit: a hoodie and two desk lamps in one cart
+     ⛔ order → STALE_CONFIRMATION — she confirmed 2 lamps, not 3
+
+  9. Maya withdraws purchase rights but keeps order history
+     ⛔ AI helper drafts a cart → SCOPE_INSUFFICIENT — its delegated grant narrowed with the parent
+     ✔ reading the order still works HTTP 200
+
+  ✔ 2 intended orders. 0 unintended orders.
 ```
 
 Or skip the terminal and **[try to break it in your browser](https://popcorn8912.github.io/oict/#playground)**.
@@ -67,8 +75,8 @@ Or skip the terminal and **[try to break it in your browser](https://popcorn8912
 
 | | Rule | What it means | Spec |
 |:-:|---|---|---|
-| 🔷 | **Who may act, for whom** | Authority starts with the consumer, flows through an explicit platform → developer → application chain, only narrows when delegated, and is revoked everywhere at once. | [`MPA` `DLG` `REV`](spec/01-participants.md) |
-| 🪞 | **Saw it = ordered it** | Every scene change bumps a state version. A confirmation is bound to the hash of exactly what was on screen, expires in two minutes, and is checked again at placement. | [`STB`](spec/02-state-binding.md) |
+| 🔷 | **Who may act, for whom** | Authority starts with the consumer, flows through an explicit platform → developer → application chain, only narrows when delegated, and can be withdrawn in whole or scope by scope, everywhere at once. | [`MPA` `DLG` `REV`](spec/01-participants.md) |
+| 🪞 | **Saw it = ordered it** | Every change to the cart (a line, a variant, a quantity) bumps a state version. A confirmation is bound to the hash of exactly what was on screen, expires in two minutes, and every line is checked again at placement. | [`STB`](spec/02-state-binding.md) |
 | 🤖 | **Agents prepare, people decide** | An AI agent can draft a cart for the state it actually saw. It can never hold `order:place` — not even with a valid confirmation in hand. | [`AGT`](spec/03-agent-controls.md) |
 | 🛡️ | **Minors protected by default** | Under-13 accounts cannot authorize physical purchases. Teen orders above a merchant limit, and any agent acting for a teen, need guardian consent. | [`MIN`](spec/04-minor-protection.md) |
 
@@ -77,7 +85,7 @@ Duplicate purchases are stopped twice: by idempotency keys **and** by single-use
 ## Proof you can run
 
 <p align="center">
-  <img src="assets/conformance.svg" alt="Terminal: 46 of 46 OICT conformance cases pass across eight categories." width="80%">
+  <img src="assets/conformance.svg" alt="Terminal: 57 of 57 OICT conformance cases pass across eight categories." width="80%">
 </p>
 
 The conformance suite talks to **any** implementation over HTTP. Every case cites the rule it verifies, so a failure points straight at a sentence in the spec.
@@ -91,7 +99,7 @@ node conformance/cli.ts --target https://your-host --json report.json   # agains
   <img src="assets/benchmark.svg" alt="Benchmark: OICT blocks every injected anomaly type across 5,000 synthetic flows with no false positives; a naive checkout-only baseline blocks only revoked authority." width="90%">
 </p>
 
-`npm run bench` replays 5,000 seeded, synthetic purchase flows with nine kinds of injected anomaly against OICT and against a naive checkout-only integration. Full numbers: [`benchmarks/results/latest.md`](benchmarks/results/latest.md). These are simulator results that show the rules work as specified; they are not production measurements.
+`npm run bench` replays 5,000 seeded, synthetic purchase flows with nine kinds of injected anomaly against OICT and against a naive checkout-only integration. Full numbers: [`benchmarks/results/latest.md`](benchmarks/results/latest.md). These are simulator results that show the rules work as specified; they are not production measurements. The [evaluation protocol](docs/study-protocol.md) describes how integration effort and detection on anomalies written by independent reviewers will be measured.
 
 ## Scales out on PostgreSQL
 
@@ -105,17 +113,17 @@ Run one instance in memory for development, or **any number of instances on one 
 |---|---|
 | A retried request returns the original order (IDM-2) | Primary key on `(grant, Idempotency-Key)`; a concurrent duplicate waits, then replays the winner |
 | One confirmation buys once, whatever key the client invents (IDM-4) | Primary key on the confirmation nonce, claimed inside the order transaction |
-| A price change between "check" and "write" cannot slip through (STB-7) | Session row `FOR UPDATE`, variant row `FOR SHARE`, versions re-compared before the insert |
+| A price change between "check" and "write" cannot slip through (STB-7) | Session row `FOR UPDATE`, every line's variant row `FOR SHARE` in a fixed order, versions re-compared before the insert |
 | Concurrent scene changes never lose a version (STB-1) | Single-statement `state_version = state_version + 1 … RETURNING` |
 | A revocation is enforced everywhere immediately (REV-1/2) | Grant chain read with one recursive query on every request |
 
-`npm run test:cluster` starts three server processes on a fresh database and attacks them: 25 rounds of 40-request retry storms, 60 concurrent scene changes, revocations and price changes issued on one instance and tested on another. `npm run bench:cluster` then pushes **600 purchases from 40 concurrent shoppers** through three instances, sending every order as a 4-request retry storm. The run ended with **600 orders and 0 duplicates** after 1,437 retries were refused ([results](benchmarks/results/cluster-latest.md)). To show the tests have teeth: making the nonce non-unique, or computing the next state version in application code, makes them fail.
+`npm run test:cluster` starts three server processes on a fresh database and attacks them: 25 rounds of 40-request retry storms, 60 concurrent scene changes, revocations and price changes issued on one instance and tested on another. `npm run bench:cluster` then pushes **600 purchases from 40 concurrent shoppers** through three instances, sending every order as a 4-request retry storm. The run ended with **600 orders and 0 duplicates** after 1,584 retries were refused ([results](benchmarks/results/cluster-latest.md)). To show the tests have teeth: making the nonce non-unique, computing the next state version in application code, or skipping the per-line re-check makes them fail. A store contract suite runs the same commit-time checks directly against both stores.
 
 Schema migrations run on start under an advisory lock, so a fleet can roll out at once. The runtime still has zero dependencies, because it includes a small PostgreSQL driver (SCRAM-SHA-256, TLS, pooling). Configuration: [docs/deployment.md](docs/deployment.md).
 
 ```bash
 export OICT_DATABASE_URL=postgres://oict:oict@localhost:5432/oict OICT_SIGNING_KEY=$(openssl rand -hex 32)
-npm start                      # or: docker compose up --build   (PostgreSQL + 2 instances + conformance)
+npm start                      # or: docker compose up --build   (PostgreSQL + 2 instances + clients + conformance)
 ```
 
 ## Signed, attributable, observable
@@ -138,6 +146,21 @@ npm start                      # or: docker compose up --build   (PostgreSQL + 2
 
 **Operable.** Prometheus metrics at `/metrics` count requests, latency, orders and **every refusal by OICT error code**, the signal to alert on. Structured JSON logs and `X-Request-Id` connect one purchase across client, server and audit trail. Details: [docs/deployment.md](docs/deployment.md#monitoring).
 
+## Sample clients
+
+Two small apps buy through the reference server with real signed tokens. They need no build step and share a [120-line client](clients/shared/oict-client.js). Run `docker compose up --build` and open **http://localhost:8080**.
+
+<table>
+<tr>
+<td width="50%"><img src="assets/client-3d.png" alt="3D showroom sample client: products on pedestals, a two-line cart and a confirmation sheet showing exactly what will be ordered."></td>
+<td width="50%"><img src="assets/client-chat.png" alt="Chat assistant sample client: the assistant fills the cart, an outdated answer is marked as such, and the assistant's own attempt to buy is refused."></td>
+</tr>
+<tr>
+<td><b><a href="clients/web-3d/">3D showroom</a></b> (three.js). Pick products off pedestals, build a multi-item cart, confirm exactly what you see. Try a merchant price change, a network retry or withdrawing the app's purchase rights.</td>
+<td><b><a href="clients/chat-assistant/">Chat assistant</a></b>. "Nova" fills your cart under a delegated grant that can only draft. When it tries to buy, the server refuses; an answer about a cart you have since changed is marked as outdated (AGT-4).</td>
+</tr>
+</table>
+
 ## How a purchase flows
 
 ```mermaid
@@ -147,8 +170,8 @@ sequenceDiagram
     participant A as App (3D · AR · chat)
     participant G as AI agent
     participant M as Merchant service + OICT
-    U->>A: picks the teal hoodie
-    A->>M: selection → stateVersion 2, snapshot hash h2
+    U->>A: picks the teal hoodie and two lamps
+    A->>M: cart → stateVersion 2, snapshot hash h2
     G->>M: draft cart @ stateVersion 2 (cart:write only)
     M-->>A: draft bound to h2
     U->>A: taps Buy on what is shown
@@ -163,28 +186,29 @@ sequenceDiagram
 
 ```text
 spec/            Normative specification (RFC 2119), every rule with a stable ID
-schemas/         JSON Schemas: participant, grant, snapshot, confirmation, order, error
+schemas/         JSON Schemas: participant, grant, cart, snapshot, confirmation, access token, order, audit event, error
 src/core/        Reference engine — grants, delegation, snapshots, confirmations, idempotency, Ed25519 JWS
 src/store/       MemoryStore · PostgresStore (migrations, transactions) · zero-dependency PG driver
 src/server/      Zero-dependency HTTP server · Bearer auth · metrics · JSON logs · audit endpoint
-conformance/     46 executable cases + CLI runner with JSON reports
-test/            Unit, auth and observability tests, conformance on both stores, multi-instance tests
+conformance/     57 executable cases + CLI runner with JSON reports
+test/            Unit, auth, observability and store-contract tests; conformance on both stores; multi-instance tests
+clients/         Sample clients: three.js 3D showroom and chat assistant, plus a 120-line browser client
 benchmarks/      Anomaly-injection benchmark · cluster load benchmark
 examples/        Narrated end-to-end walkthrough
 site/            The live playground (GitHub Pages)
-docs/            Quickstart, API reference, deployment guide, trial-report template
+docs/            Quickstart, API reference, deployment guide, evaluation protocol, trial-report template
 ```
 
 | Command | What it does |
 |---|---|
-| `npm run demo` | Narrated walkthrough with an AI helper, a price change and a retry storm |
+| `npm run demo` | Narrated walkthrough: an AI helper, a price change, a retry storm, a multi-item cart and partial revocation |
 | `npm test` | Unit tests + full conformance suite on the in-memory store |
-| `npm run test:cluster` | Three instances on one PostgreSQL database under concurrent load (needs `OICT_TEST_DATABASE_URL`) |
+| `npm run test:cluster` | Three instances on one PostgreSQL database under concurrent load, plus the store contract on PostgreSQL (needs `OICT_TEST_DATABASE_URL`) |
 | `npm run conformance` | Pretty conformance report (`-- --compact` for one line per category) |
 | `npm run bench` | Anomaly-injection benchmark; writes `benchmarks/results/` |
 | `npm run bench:cluster` | Cluster load benchmark with database-level invariant checks |
 | `npm run dev` | Reference server on `:8787` with test hooks, auto-reload |
-| `docker compose up --build` | PostgreSQL + two OICT instances + a conformance run |
+| `docker compose up --build` | PostgreSQL + two OICT instances + sample clients on `:8080` + a conformance run |
 
 ## Where OICT fits
 
@@ -194,8 +218,9 @@ OICT does **not** replace catalogs, checkout or payment. It is designed as a pro
 
 - **v0.1:** spec draft, reference engine, 39 conformance cases, benchmark, playground
 - **v0.2:** PostgreSQL store, multi-instance guarantees, cluster tests and benchmark
-- **v0.3 (now):** signed Bearer tokens, Ed25519 JWS confirmations with published keys, audit trail, metrics, structured logs
-- **v0.4:** ≥ 50 cases, multi-item carts, containerized three.js and chat clients
+- **v0.3:** signed Bearer tokens, Ed25519 JWS confirmations with published keys, audit trail, metrics, structured logs
+- **v0.4 (now):** multi-item carts, partial revocation, 57 conformance cases, store contract tests, 3D and chat sample clients, evaluation protocol
+- **v0.5:** first independent trials under the evaluation protocol, voice and AR-panel profiles
 - **Next:** game-engine (C#) sample, voice and AR-panel profiles, adapter profiles, extension proposals to open-protocol communities
 
 Details and success criteria: [ROADMAP.md](ROADMAP.md).

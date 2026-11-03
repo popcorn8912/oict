@@ -170,7 +170,7 @@ describe("HTTP observability", () => {
     assert.match(metrics, /^oict_orders_total\{result="replayed"\} 1$/m);
     assert.match(metrics, /^oict_integrity_refusals_total\{code="CONFIRMATION_CONSUMED"\} 1$/m);
     assert.match(metrics, /^oict_http_request_duration_seconds_bucket\{route="\/v1\/orders",le="\+Inf"\} 3$/m);
-    assert.match(metrics, /^oict_build_info\{instance="obs-1",store="memory",version="0\.3\.0"\} 1$/m);
+    assert.match(metrics, /^oict_build_info\{instance="obs-1",store="memory",version="[\d.]+"\} 1$/m);
 
     const line = lines.find((l) => l.requestId === "trace-abc")!;
     assert.equal(line.route, "/v1/orders");

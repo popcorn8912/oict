@@ -49,10 +49,10 @@ ok(`helper gets cart:write only ${dim(agentGrant.id)}`);
 step(3, "Maya picks up a hoodie in the 3D scene");
 const session = (await call("POST", "/v1/sessions", { consumerId: "maya", applicationId: "space-mall" })).body;
 let sel = (await call("POST", `/v1/sessions/${session.id}/selection`, { sceneObjectId: "rack-03", sku: "SYN-HOODIE-01", variantId: "violet-m", quantity: 1 })).body;
-ok(`stateVersion ${sel.stateVersion}  ${sel.snapshot.variantId}  $${(sel.snapshot.unitPriceMinor / 100).toFixed(2)}  ${dim(sel.snapshotHash.slice(0, 22) + "…")}`);
+ok(`stateVersion ${sel.stateVersion}  ${sel.snapshot.lines[0].variantId}  $${(sel.snapshot.totalMinor / 100).toFixed(2)}  ${dim(sel.snapshotHash.slice(0, 22) + "…")}`);
 const staleAgentVersion = sel.stateVersion;
 sel = (await call("POST", `/v1/sessions/${session.id}/selection`, { sceneObjectId: "rack-03", sku: "SYN-HOODIE-01", variantId: "teal-m", quantity: 1 })).body;
-ok(`switches to ${sel.snapshot.variantId} → stateVersion ${sel.stateVersion}  $${(sel.snapshot.unitPriceMinor / 100).toFixed(2)}`);
+ok(`switches to ${sel.snapshot.lines[0].variantId} → stateVersion ${sel.stateVersion}  $${(sel.snapshot.totalMinor / 100).toFixed(2)}`);
 
 step(4, "The AI helper, a beat behind, drafts a cart for the old variant");
 const late = await call("POST", "/v1/carts", { sessionId: session.id, stateVersion: staleAgentVersion }, { authorization: `Bearer ${agentGrant.accessToken}` });
@@ -71,7 +71,7 @@ blocked(`order → ${yellow(r.body.error.code)} ${dim("— Maya never agreed to 
 
 step(6, "Maya sees the new price and confirms again");
 sel = (await call("GET", `/v1/sessions/${session.id}`)).body;
-note(`UI re-renders the current snapshot: $${(sel.snapshot.unitPriceMinor / 100).toFixed(2)}`);
+note(`UI re-renders the current snapshot: $${(sel.snapshot.totalMinor / 100).toFixed(2)}`);
 conf = (await call("POST", "/v1/confirmations", { sessionId: session.id, consumerId: "maya", snapshotHash: sel.snapshotHash })).body;
 r = await call("POST", "/v1/orders", { sessionId: session.id, confirmationToken: conf.confirmationToken }, { ...auth, "idempotency-key": "maya-order-attempt-2" });
 ok(`order ${cyan(r.body.id)}  $${(r.body.totalMinor / 100).toFixed(2)}  ${dim(`HTTP ${r.status}`)}`);
@@ -82,12 +82,39 @@ ok(`same key → same order ${cyan(replay.body.id)} ${dim(`(replay: ${replay.rep
 const regen = await call("POST", "/v1/orders", { sessionId: session.id, confirmationToken: conf.confirmationToken }, { ...auth, "idempotency-key": "regenerated-after-timeout" });
 blocked(`regenerated key → ${yellow(regen.body.error.code)} ${dim("— one tap, one order")}`);
 
-step(8, "Maya checks what was done on her behalf");
+step(8, "Next visit: a hoodie and two desk lamps in one cart");
+let cartView = (await call("PUT", `/v1/sessions/${session.id}/cart`, { lines: [
+  { sceneObjectId: "rack-03", sku: "SYN-HOODIE-01", variantId: "violet-m", quantity: 1 },
+  { sceneObjectId: "desk-01", sku: "SYN-LAMP-03", variantId: "std", quantity: 2 },
+] })).body;
+ok(`2 lines  total $${(cartView.snapshot.totalMinor / 100).toFixed(2)}  ${dim(`stateVersion ${cartView.stateVersion}`)}`);
+conf = (await call("POST", "/v1/confirmations", { sessionId: session.id, consumerId: "maya", snapshotHash: cartView.snapshotHash })).body;
+await call("PUT", `/v1/sessions/${session.id}/cart`, { lines: [
+  { sceneObjectId: "rack-03", sku: "SYN-HOODIE-01", variantId: "violet-m", quantity: 1 },
+  { sceneObjectId: "desk-01", sku: "SYN-LAMP-03", variantId: "std", quantity: 3 },
+] });
+note("a stray tap bumps the lamps to 3 after she confirmed");
+r = await call("POST", "/v1/orders", { sessionId: session.id, confirmationToken: conf.confirmationToken }, { ...auth, "idempotency-key": "maya-cart-attempt-1" });
+blocked(`order → ${yellow(r.body.error.code)} ${dim("— she confirmed 2 lamps, not 3")}`);
+cartView = (await call("GET", `/v1/sessions/${session.id}`)).body;
+conf = (await call("POST", "/v1/confirmations", { sessionId: session.id, consumerId: "maya", snapshotHash: cartView.snapshotHash })).body;
+r = await call("POST", "/v1/orders", { sessionId: session.id, confirmationToken: conf.confirmationToken }, { ...auth, "idempotency-key": "maya-cart-attempt-2" });
+ok(`she checks the cart, confirms 3 lamps: order ${cyan(r.body.id)}  $${(r.body.totalMinor / 100).toFixed(2)}  ${dim(`${r.body.snapshot.lines.length} lines`)}`);
+
+step(9, "Maya withdraws purchase rights but keeps order history");
+await call("POST", `/v1/grants/${appGrant.id}/revoke`, { by: "maya", scopes: ["order:place", "cart:write"] });
+ok(`space-mall keeps ${cyan("catalog:read order:read")}`);
+const lateCart = await call("POST", "/v1/carts", { sessionId: session.id, stateVersion: cartView.stateVersion }, { authorization: `Bearer ${agentGrant.accessToken}` });
+blocked(`AI helper drafts a cart → ${yellow(lateCart.body.error.code)} ${dim("— its delegated grant narrowed with the parent")}`);
+const read = await call("GET", `/v1/orders/${r.body.id}`, undefined, auth);
+ok(`reading the order still works ${dim(`HTTP ${read.status}`)}`);
+
+step(10, "Maya checks what was done on her behalf");
 const trail = (await call("GET", "/v1/audit", undefined, auth)).body.events as any[];
 for (const e of [...trail].reverse()) {
-  const mark = e.type === "order.refused" ? red("⛔") : green("✔");
+  const mark = e.type === "order.refused" ? red("⛔") : e.type === "grant.narrowed" ? yellow("◐") : green("✔");
   console.log(`     ${mark} ${e.type.padEnd(14)} ${dim("by")} ${cyan(e.actor ?? "?")}${e.code ? `  ${yellow(e.code)}` : ""}${e.orderId ? `  ${dim(e.orderId)}` : ""}`);
 }
 
-console.log(`\n  ${green("✔")} ${bold("1 intended order. 0 unintended orders.")}\n`);
+console.log(`\n  ${green("✔")} ${bold("2 intended orders. 0 unintended orders.")}\n`);
 server.close();

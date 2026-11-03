@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OICT Showroom · 3D sample client</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Instrument+Sans:wght@400;500;600&family=Unbounded:wght@600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../shared/theme.css">
+<style>
+  body { display: flex; flex-direction: column; overflow: hidden; }
+  main { flex: 1; display: grid; grid-template-columns: 1fr 380px; min-height: 0; }
+  #stage { position: relative; min-height: 0; }
+  #stage canvas { display: block; width: 100%; height: 100%; }
+  .label {
+    position: absolute; transform: translate(-50%, -100%); pointer-events: none; white-space: nowrap;
+    background: rgba(31, 26, 72, .88); border: 1px solid var(--line); border-radius: 10px; padding: 4px 9px;
+    font-size: 12.5px; color: var(--soft);
+  }
+  .label b { color: var(--text); font-weight: 600; }
+  .label.selected { border-color: var(--violet); color: var(--text); }
+  .hint { position: absolute; left: 16px; bottom: 14px; font-size: 13px; color: var(--muted); }
+  aside { border-left: 1px solid var(--line); padding: 14px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; }
+  .product-title { font: 700 17px var(--display); margin: 0 0 2px; }
+  .row { display: flex; align-items: center; gap: 10px; justify-content: space-between; }
+  .stepper { display: inline-flex; align-items: center; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+  .stepper button { background: var(--night); border: 0; width: 30px; height: 30px; cursor: pointer; }
+  .stepper span { min-width: 28px; text-align: center; font-variant-numeric: tabular-nums; }
+  .lines { list-style: none; padding: 0; margin: 0 0 10px; display: flex; flex-direction: column; gap: 8px; }
+  .lines li { display: grid; grid-template-columns: 1fr auto auto; gap: 8px; align-items: center; font-size: 14px; }
+  .lines .x { background: none; border: 0; color: var(--muted); cursor: pointer; font-size: 16px; }
+  .total { font: 700 18px var(--display); }
+  .state { font: 12px var(--mono); color: var(--muted); word-break: break-all; }
+  .sheet { border: 1px solid var(--violet); }
+  .sheet .total { font-size: 22px; }
+  .actions { display: flex; gap: 8px; flex-wrap: wrap; }
+  .empty { color: var(--muted); font-size: 14px; }
+  details summary { cursor: pointer; color: var(--soft); font-weight: 600; }
+  @media (max-width: 900px) {
+    body { overflow: auto; }
+    main { grid-template-columns: 1fr; }
+    #stage { height: 58vh; }
+    aside { border-left: 0; border-top: 1px solid var(--line); }
+  }
+</style>
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+} }
+</script>
+</head>
+<body>
+<header class="topbar">
+  <div class="brand">
+    <svg viewBox="0 0 32 32" aria-hidden="true"><path d="M16 3l11 6v14l-11 6-11-6V9z" fill="#B490FF"/><path d="M16 3l11 6-11 6-11-6z" fill="#5EE7DF"/></svg>
+    OICT Showroom <small>3D sample client</small>
+  </div>
+  <div class="spacer"></div>
+  <span class="pill" id="state-pill" title="Session state version and snapshot hash">state —</span>
+  <span class="pill" id="server-pill"><i></i>connecting…</span>
+</header>
+
+<main>
+  <section id="stage" aria-label="3D showroom. Click a product to select it.">
+    <div class="hint">Drag to look around · click a product to select it</div>
+  </section>
+
+  <aside>
+    <section class="panel" id="selected-panel" aria-live="polite">
+      <h2>Selected</h2>
+      <p class="empty" id="selected-empty">Click a product in the showroom.</p>
+      <div id="selected" hidden>
+        <p class="product-title" id="sel-title"></p>
+        <p class="muted" id="sel-price" style="margin:0 0 10px"></p>
+        <div class="chips" id="sel-variants" style="margin-bottom:12px"></div>
+        <div class="row">
+          <div class="stepper" aria-label="Quantity">
+            <button type="button" id="qty-minus" aria-label="Fewer">−</button><span id="qty">1</span><button type="button" id="qty-plus" aria-label="More">+</button>
+          </div>
+          <button class="btn primary" type="button" id="add">Add to cart</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel" aria-live="polite">
+      <h2>Cart</h2>
+      <ul class="lines" id="lines"></ul>
+      <p class="empty" id="cart-empty">Your cart is empty.</p>
+      <div class="row" id="cart-foot" hidden>
+        <span class="total" id="cart-total"></span>
+        <button class="btn primary" type="button" id="review">Review and confirm</button>
+      </div>
+      <p class="state" id="cart-hash"></p>
+    </section>
+
+    <section class="panel sheet" id="sheet" hidden aria-live="polite">
+      <h2>You are confirming</h2>
+      <ul class="lines" id="sheet-lines"></ul>
+      <div class="row"><span class="muted">Total</span><span class="total" id="sheet-total"></span></div>
+      <p class="state" id="sheet-note"></p>
+      <div class="actions">
+        <button class="btn primary" type="button" id="place">Place order</button>
+        <button class="btn" type="button" id="cancel">Back</button>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>Try to break it</h2>
+      <div class="actions">
+        <button class="btn ghost" type="button" id="reprice">Merchant changes a price</button>
+        <button class="btn ghost" type="button" id="retry" disabled>Network retries the last order</button>
+        <button class="btn ghost" type="button" id="withdraw">Withdraw purchase rights</button>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>What the server decided</h2>
+      <ol class="log" id="log"></ol>
+    </section>
+
+    <section class="panel">
+      <details id="audit-box">
+        <summary>Done on my behalf (audit trail)</summary>
+        <ol class="log" id="audit" style="margin-top:10px"></ol>
+      </details>
+    </section>
+  </aside>
+</main>
+
+<div class="offline" id="offline" hidden>
+  <div class="panel">
+    <h2 style="font:700 18px var(--display);color:var(--text)">Start the OICT reference server</h2>
+    <p>This client talks to a running OICT server (default <span class="mono" id="api-url"></span>). From the repository root:</p>
+    <pre>docker compose up --build      # server, database and clients
+# or
+npm run dev                    # in-memory server on :8787</pre>
+    <p class="muted">Point the client at another server with <span class="mono">?api=https://your-host</span>.</p>
+    <button class="btn primary" type="button" onclick="location.reload()">Try again</button>
+  </div>
+</div>
+
+<script type="module" src="./main.js"></script>
+</body>
+</html>

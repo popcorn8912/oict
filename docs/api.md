@@ -17,10 +17,12 @@ Requests that act under a grant send `Authorization: Bearer <access token>` ([sp
 | `GET` | `/v1/catalog` | — | Synthetic catalog | — |
 | `POST` | `/v1/participants` | — | Register a platform, developer, application, consumer or agent | MPA-6 |
 | `POST` | `/v1/grants` | — | Issue a root or delegated grant; returns an access token for its subject | MPA-5, MPA-7, DLG-1..5, AGT-1, AGT-5, MIN-1 |
-| `POST` | `/v1/grants/:id/revoke` | — | Revoke a grant (cascades) | REV-1..4 |
+| `POST` | `/v1/grants/:id/revoke` | — | Revoke a grant (cascades); with `"scopes": [...]`, withdraw only those scopes | REV-1..5 |
 | `POST` | `/v1/sessions` | — | Open a consumer × application session | — |
 | `GET` | `/v1/sessions/:id` | — | Current snapshot and hash | STB-2 |
-| `POST` | `/v1/sessions/:id/selection` | — | Report what the consumer is looking at | STB-1 |
+| `PUT` | `/v1/sessions/:id/cart` | — | Replace the cart: `{ "lines": [{ sceneObjectId, sku, variantId, quantity }] }` | STB-1, STB-10 |
+| `DELETE` | `/v1/sessions/:id/cart` | — | Empty the cart (bumps `stateVersion`) | STB-1 |
+| `POST` | `/v1/sessions/:id/selection` | — | Shorthand for a one-line cart (what the consumer is pointing at) | STB-1 |
 | `POST` | `/v1/carts` | `cart:write` | Agent/app drafts a cart at a state version | AGT-2, AGT-3 |
 | `POST` | `/v1/confirmations` | — | Consumer confirms a snapshot hash | STB-3..6, MIN-2 |
 | `POST` | `/v1/orders` | `order:place` | Exchange a confirmation for an order; needs `Idempotency-Key` | IDM-1..4, STB-7, STB-8 |

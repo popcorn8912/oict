@@ -1,4 +1,4 @@
-import type { AuditEvent, CatalogItem, CatalogVariant, DraftCart, Grant, Order, Participant, Selection, Session } from "../core/types.ts";
+import type { AuditEvent, CartLine, CatalogItem, CatalogVariant, DraftCart, Grant, Order, Participant, Scope, Session } from "../core/types.ts";
 
 /**
  * Versions the order must still match at the instant it is committed (STB-7).
@@ -9,10 +9,8 @@ import type { AuditEvent, CatalogItem, CatalogVariant, DraftCart, Grant, Order, 
 export interface CommitExpectation {
   sessionId: string;
   stateVersion: number;
-  sku: string;
-  variantId: string;
-  variantVersion: number;
-  priceVersion: number;
+  /** Every cart line's versions; a change to any one of them makes the order stale. */
+  lines: { sku: string; variantId: string; variantVersion: number; priceVersion: number }[];
 }
 
 export interface CommitOrderInput {
@@ -57,6 +55,8 @@ export interface Store {
   insertGrant(g: Grant): Promise<void>;
   /** Sets revokedAt if not already set; returns the stored grant. */
   revokeGrant(id: string, at: number): Promise<Grant | undefined>;
+  /** Atomically removes scopes from a grant (REV-5); returns the stored grant. */
+  narrowGrant(id: string, remove: Scope[]): Promise<Grant | undefined>;
 
   listCatalog(): Promise<CatalogItem[]>;
   getVariant(sku: string, variantId: string): Promise<{ item: Omit<CatalogItem, "variants">; variant: CatalogVariant } | undefined>;
@@ -65,14 +65,16 @@ export interface Store {
 
   insertSession(s: Session): Promise<void>;
   getSession(id: string): Promise<Session | undefined>;
-  /** Atomically stores the selection and increments stateVersion (no lost updates). */
-  updateSelection(id: string, selection: Selection): Promise<Session | undefined>;
+  /** Atomically replaces the cart and increments stateVersion (no lost updates). */
+  updateCart(id: string, lines: CartLine[]): Promise<Session | undefined>;
 
   insertCart(c: DraftCart): Promise<void>;
 
   getOrder(id: string): Promise<Order | undefined>;
   getIdempotency(grantId: string, key: string): Promise<IdempotencyRecord | undefined>;
   commitOrder(input: CommitOrderInput): Promise<CommitOrderResult>;
+  /** Fast pre-check for IDM-4; commitOrder still enforces it atomically. */
+  isNonceConsumed(nonce: string): Promise<boolean>;
 
   /** Append-only: implementations MUST NOT offer update or delete. */
   appendAudit(e: AuditEvent): Promise<void>;

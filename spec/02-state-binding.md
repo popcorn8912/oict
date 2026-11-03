@@ -6,9 +6,11 @@ In an immersive or conversational interface, *what the consumer is looking at* c
 
 ## 2.2 Sessions and state versions
 
-A **session** joins one consumer and one application. The service holds the session's current **selection** (`sceneObjectId`, `sku`, `variantId`, `quantity`) and a monotonically increasing **`stateVersion`**.
+A **session** joins one consumer and one application. The service holds the session's current **cart** — one or more lines, each a `sceneObjectId`, `sku`, `variantId` and `quantity` — and a monotonically increasing **`stateVersion`**. Pointing at a single object in a scene is a cart with one line.
 
-**STB-1.** Every change to the selection **MUST** increment `stateVersion` and **MUST** produce a new snapshot hash.
+**STB-1.** Every change to the cart — a line added or removed, a different variant, a different quantity — **MUST** increment `stateVersion` and **MUST** produce a new snapshot hash. Concurrent changes **MUST NOT** lose a version.
+
+**STB-10.** A cart **MUST** have between 1 and 20 lines, quantities **MUST** be integers from 1 to 99, a product variant **MUST NOT** appear on two lines (change the quantity instead), every line **MUST** be available and use the same currency. A cart that breaks any of these fails with `BAD_REQUEST` and leaves the session unchanged. Emptying a cart is an explicit operation, not a cart with zero lines, and also bumps `stateVersion`. Spending limits (DLG-5) and the teen limit (MIN-2) apply to the cart total, never to single lines.
 
 ## 2.3 Interaction snapshot
 
@@ -18,14 +20,14 @@ The **interaction snapshot** is the server's authoritative description of the cu
 {
   "sessionId": "ses_…",
   "stateVersion": 4,
-  "sceneObjectId": "obj-hoodie-rack",
-  "sku": "SYN-HOODIE-01",
-  "variantId": "violet-m",
-  "variantVersion": 1,
-  "priceVersion": 1,
-  "unitPriceMinor": 4200,
   "currency": "USD",
-  "quantity": 1
+  "totalMinor": 10000,
+  "lines": [
+    { "sceneObjectId": "rack-03", "sku": "SYN-HOODIE-01", "variantId": "violet-m",
+      "variantVersion": 1, "priceVersion": 1, "unitPriceMinor": 4200, "quantity": 1, "lineTotalMinor": 4200 },
+    { "sceneObjectId": "desk-01", "sku": "SYN-LAMP-03", "variantId": "std",
+      "variantVersion": 1, "priceVersion": 1, "unitPriceMinor": 2900, "quantity": 2, "lineTotalMinor": 5800 }
+  ]
 }
 ```
 
@@ -49,7 +51,7 @@ On success the service issues a **confirmation token** that binds `sessionId`, `
 
 ## 2.5 Order placement
 
-**STB-7.** At placement the service **MUST** recompute the current snapshot hash and **MUST** refuse the order with `STALE_CONFIRMATION` if it differs from the hash in the confirmation token. This catches price changes, variant switches and scene changes that happened *after* confirmation.
+**STB-7.** At placement the service **MUST** recompute the current snapshot hash and **MUST** refuse the order with `STALE_CONFIRMATION` if it differs from the hash in the confirmation token. This catches price changes on any line, variant switches, quantity changes, added or removed lines, and scene changes that happened *after* confirmation. The comparison and the write **MUST** be atomic with respect to concurrent changes to the session and to every line's variant.
 
 **STB-8.** The created order **MUST** record the snapshot and snapshot hash it was placed against, so any later dispute can be resolved against exactly what the consumer confirmed.
 

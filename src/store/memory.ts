@@ -1,4 +1,4 @@
-import type { AuditEvent, CatalogItem, CatalogVariant, DraftCart, Grant, Order, Participant, Selection, Session } from "../core/types.ts";
+import type { AuditEvent, CartLine, CatalogItem, CatalogVariant, DraftCart, Grant, Order, Participant, Scope, Session } from "../core/types.ts";
 import type { CommitOrderInput, CommitOrderResult, IdempotencyRecord, Store } from "./store.ts";
 
 /**
@@ -57,6 +57,12 @@ export class MemoryStore implements Store {
     g.revokedAt ??= at;
     return structuredClone(g);
   }
+  async narrowGrant(id: string, remove: Scope[]) {
+    const g = this.grants.get(id);
+    if (!g) return undefined;
+    g.scopes = g.scopes.filter((s) => !remove.includes(s));
+    return structuredClone(g);
+  }
 
   async listCatalog() {
     return [...this.catalog.values()].map((c) => structuredClone(c));
@@ -84,10 +90,10 @@ export class MemoryStore implements Store {
     const s = this.sessions.get(id);
     return s && structuredClone(s);
   }
-  async updateSelection(id: string, selection: Selection) {
+  async updateCart(id: string, lines: CartLine[]) {
     const s = this.sessions.get(id);
     if (!s) return undefined;
-    s.selection = { ...selection };
+    s.cart = lines.map((l) => ({ ...l }));
     s.stateVersion += 1;
     return structuredClone(s);
   }
@@ -116,14 +122,10 @@ export class MemoryStore implements Store {
 
     const e = input.expect;
     const s = this.sessions.get(e.sessionId);
-    const v = this.catalog.get(e.sku)?.variants.find((x) => x.variantId === e.variantId);
-    if (
-      !s || !v ||
-      s.stateVersion !== e.stateVersion ||
-      s.selection?.sku !== e.sku || s.selection?.variantId !== e.variantId ||
-      v.variantVersion !== e.variantVersion || v.priceVersion !== e.priceVersion
-    ) {
-      return { kind: "stale" };
+    if (!s || s.stateVersion !== e.stateVersion) return { kind: "stale" };
+    for (const line of e.lines) {
+      const v = this.catalog.get(line.sku)?.variants.find((x) => x.variantId === line.variantId);
+      if (!v || v.variantVersion !== line.variantVersion || v.priceVersion !== line.priceVersion) return { kind: "stale" };
     }
 
     this.nonces.add(input.nonce);
@@ -131,6 +133,10 @@ export class MemoryStore implements Store {
     this.idempotency.set(idemKey, { fingerprint: input.fingerprint, orderId: input.order.id });
     this.audit.push(structuredClone(input.audit));
     return { kind: "created", order: structuredClone(input.order) };
+  }
+
+  async isNonceConsumed(nonce: string) {
+    return this.nonces.has(nonce);
   }
 
   async appendAudit(e: AuditEvent) {

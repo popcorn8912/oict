@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OICT sample clients</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Instrument+Sans:wght@400;500;600&family=Unbounded:wght@600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="shared/theme.css">
+<style>
+  main { max-width: 920px; margin: 0 auto; padding: 48px 16px; }
+  h1 { font: 700 clamp(26px, 4vw, 38px)/1.15 var(--display); margin: 0 0 12px; }
+  .lede { color: var(--soft); max-width: 40em; margin: 0 0 32px; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .card { display: block; text-decoration: none; color: inherit; padding: 22px; }
+  .card:hover { border-color: var(--violet); }
+  .card h2 { font: 700 18px var(--display); color: var(--text); margin: 0 0 8px; }
+  .card p { margin: 0 0 10px; color: var(--soft); }
+  pre { background: var(--night-2); border: 1px solid var(--line); border-radius: 14px; padding: 14px; font: 13.5px/1.6 var(--mono); overflow-x: auto; margin-top: 28px; }
+  @media (max-width: 720px) { .grid { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<main>
+  <h1>Sample clients</h1>
+  <p class="lede">Two small applications that buy through the OICT reference server with real signed tokens. Both run in the browser, need no build step, and use the same 120-line client in <span class="mono">shared/oict-client.js</span>.</p>
+  <div class="grid">
+    <a class="panel card" href="web-3d/">
+      <h2>3D showroom</h2>
+      <p>A three.js scene. Pick products off pedestals, build a multi-item cart, confirm exactly what you see, and watch price changes, retries and withdrawn rights get handled.</p>
+      <span class="mono muted">web-3d/</span>
+    </a>
+    <a class="panel card" href="chat-assistant/">
+      <h2>Chat assistant</h2>
+      <p>An assistant that fills your cart under a delegated grant that can only draft. It tries to buy for you and is refused; late answers about an old cart are marked as outdated.</p>
+      <span class="mono muted">chat-assistant/</span>
+    </a>
+  </div>
+<pre>docker compose up --build
+# clients:  http://localhost:8080
+# server:   http://localhost:8787  (PostgreSQL behind it)</pre>
+  <p class="muted">Already running a server elsewhere? Add <span class="mono">?api=https://your-host</span> to either client's address.</p>
+</main>
+</body>
+</html>

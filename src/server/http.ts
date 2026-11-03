@@ -8,7 +8,7 @@ import { OictError } from "../core/types.ts";
 import { MemoryStore } from "../store/memory.ts";
 import { serverMetrics, type LogFn } from "./observability.ts";
 
-export const VERSION = "0.3.0";
+export const VERSION = "0.4.0";
 
 export interface ServerOptions {
   /** Expose /v1/_test/* fixture endpoints used by the conformance suite. */
@@ -131,7 +131,9 @@ export function createServer(opts: ServerOptions = {}): http.Server {
       return withToken(grant);
     }),
 
-    route("POST", "/v1/grants/:id/revoke", ({ engine, params, body }) => engine.revokeGrant(params.id!, str(body, "by"))),
+    route("POST", "/v1/grants/:id/revoke", ({ engine, params, body }) =>
+      engine.revokeGrant(params.id!, str(body, "by"), body.scopes === undefined ? undefined : (body.scopes as never)),
+    ),
 
     route("POST", "/v1/sessions", ({ engine, body, setStatus }) => {
       setStatus(201);
@@ -140,9 +142,28 @@ export function createServer(opts: ServerOptions = {}): http.Server {
 
     route("GET", "/v1/sessions/:id", async ({ engine, params }) => {
       const session = await engine.session(params.id!);
-      if (!session.selection) return { session, snapshot: null, snapshotHash: null };
+      if (!session.cart?.length) return { session, snapshot: null, snapshotHash: null };
       const snapshot = await engine.snapshot(session);
       return { session, snapshot, snapshotHash: digest(snapshot) };
+    }),
+
+    route("PUT", "/v1/sessions/:id/cart", async ({ engine, params, body }) => {
+      if (!Array.isArray(body.lines)) throw new OictError("BAD_REQUEST", "lines must be an array");
+      const { session, snapshot, snapshotHash } = await engine.updateCart(
+        params.id!,
+        (body.lines as Json[]).map((l) => ({
+          sceneObjectId: l?.sceneObjectId as string,
+          sku: l?.sku as string,
+          variantId: l?.variantId as string,
+          quantity: Number(l?.quantity ?? 1),
+        })),
+      );
+      return { stateVersion: session.stateVersion, snapshot, snapshotHash };
+    }),
+
+    route("DELETE", "/v1/sessions/:id/cart", async ({ engine, params }) => {
+      const session = await engine.clearCart(params.id!);
+      return { stateVersion: session.stateVersion, snapshot: null, snapshotHash: null };
     }),
 
     route("POST", "/v1/sessions/:id/selection", async ({ engine, params, body }) => {
@@ -224,6 +245,8 @@ export function createServer(opts: ServerOptions = {}): http.Server {
         "content-type": contentType,
         "access-control-allow-origin": "*",
         "access-control-allow-headers": "authorization, content-type, idempotency-key, x-request-id",
+        "access-control-allow-methods": "GET, POST, PUT, DELETE, OPTIONS",
+        "access-control-allow-private-network": "true",
         "access-control-expose-headers": "oict-idempotent-replay, x-oict-instance, x-request-id",
         "x-oict-version": VERSION,
         "x-oict-instance": instanceId,

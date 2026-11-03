@@ -48,7 +48,15 @@ curl -s localhost:8787/v1/audit -H "authorization: Bearer $TOKEN" | jq '.events[
 curl -s localhost:8787/metrics | grep oict_orders_total
 ```
 
-## 4. Test your own service
+## 4. Try the sample clients
+
+```bash
+docker compose up --build     # then open http://localhost:8080
+```
+
+Or serve `clients/` with any static file server while `npm run dev` runs. The clients talk to `http://localhost:8787` unless you add `?api=…`.
+
+## 5. Test your own service
 
 Implement the endpoints in the [API reference](api.md) plus the three fixture hooks, then:
 

@@ -135,6 +135,20 @@ export const MIGRATIONS: { version: number; name: string; sql: string }[] = [
       CREATE TRIGGER audit_events_append_only BEFORE UPDATE OR DELETE ON audit_events FOR EACH ROW EXECUTE FUNCTION oict_audit_append_only();
     `,
   },
+  {
+    version: 3,
+    name: "multi-item carts and scope narrowing",
+    sql: `
+      ALTER TABLE sessions ADD COLUMN cart jsonb;
+      UPDATE sessions SET cart = jsonb_build_array(jsonb_build_object('sceneObjectId', scene_object_id, 'sku', sku, 'variantId', variant_id, 'quantity', quantity)) WHERE sku IS NOT NULL;
+      ALTER TABLE sessions DROP COLUMN scene_object_id, DROP COLUMN sku, DROP COLUMN variant_id, DROP COLUMN quantity;
+      ALTER TABLE sessions ADD CONSTRAINT sessions_cart_is_array CHECK (cart IS NULL OR jsonb_typeof(cart) = 'array');
+
+      ALTER TABLE audit_events DROP CONSTRAINT audit_events_type_check;
+      ALTER TABLE audit_events ADD CONSTRAINT audit_events_type_check
+        CHECK (type IN ('grant.issued','grant.narrowed','grant.revoked','cart.prepared','order.placed','order.refused'));
+    `,
+  },
 ];
 
 const LOCK_KEY = 0x01c7; // arbitrary, stable advisory-lock id for OICT migrations

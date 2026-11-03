@@ -44,7 +44,7 @@ A grant **MAY** name a `parentGrantId`. Delegation lets an application hand a na
 
 **DLG-5.** Constraints are inherited and can only tighten: a child's `maxOrderTotalMinor` is the minimum of its own and its parent's; a parent's `guardianConsentRef` carries over. An order whose total exceeds the effective limit **MUST** fail with `LIMIT_EXCEEDED`.
 
-Violations of DLG-1 to DLG-4 **MUST** fail with `DELEGATION_INVALID`.
+Violations of DLG-1 to DLG-4 **MUST** fail with `DELEGATION_INVALID`. DLG-1 is checked against the parent's *effective* scopes (REV-5).
 
 ## 1.4 Revocation & expiry
 
@@ -55,6 +55,8 @@ Violations of DLG-1 to DLG-4 **MUST** fail with `DELEGATION_INVALID`.
 **REV-3.** A grant past its `expiresAt` **MUST** be treated as inactive.
 
 **REV-4.** Only a grant's issuer, or the consumer at the root of its chain, **MAY** revoke it. Other callers **MUST** receive `PRINCIPAL_MISMATCH`.
+
+**REV-5.** Revocation **MAY** be partial: the revoker names the scopes to withdraw and the grant keeps the rest (for example, stop purchases but keep order history). A grant's **effective scopes** are the intersection of its own scopes and those of every ancestor, so withdrawing a scope from a grant withdraws it from every grant delegated from it at once, and no new delegation may include it. Withdrawing every scope revokes the grant (REV-1).
 
 ## 1.5 Authentication
 

@@ -2,6 +2,23 @@
 
 All notable changes to the OICT specification and reference implementation. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [SemVer](https://semver.org/).
 
+## [0.4.0] — 2026-11-03
+
+### Added
+- **Multi-item carts.** `PUT /v1/sessions/:id/cart` replaces the whole cart in one step; `DELETE` empties it. Snapshots now list every line with its versions and price, and a confirmation covers the whole cart. Changing a quantity, adding or removing a line, or a price change on *any* line after confirmation blocks the order (STB-1, STB-7).
+- New rule **STB-10**: 1–20 lines, quantities 1–99, no duplicate variants, one currency per cart; spending limits and the teen limit apply to the cart total.
+- **Partial revocation** (new rule **REV-5**): withdraw selected scopes from a grant (`POST /v1/grants/:id/revoke` with `scopes`). Effective scopes are the intersection along the delegation chain, so delegated grants narrow at once. New audit event `grant.narrowed`.
+- 11 conformance cases (57 total): multi-item totals, quantity and line changes, per-line price changes, currency and cart-shape rules, partial revocation and its cascade, cart-total limits for teens and spending caps.
+- **Store contract tests** that check commit-time guarantees directly against `MemoryStore` and `PostgresStore`.
+- **Sample clients** (`clients/`): a three.js 3D showroom and a chat assistant, both using real signed tokens through a 120-line browser client. Served by Docker Compose on `:8080` and published with the project site.
+- [Evaluation protocol](docs/study-protocol.md) for the integration-effort, detection-rate and onboarding targets.
+- Database migration 3: carts as JSON lines (existing single-item sessions are converted), new audit event type.
+
+### Changed
+- **Breaking:** the interaction snapshot is now `{ sessionId, stateVersion, currency, totalMinor, lines[] }` (spec v0.3). `POST /v1/sessions/:id/selection` still works as a one-line cart.
+- An already-used confirmation is reported as `CONFIRMATION_CONSUMED` even after its cart was emptied.
+- CORS allows `PUT` and `DELETE` and answers private-network preflights, so browser clients on another origin can reach a local server.
+
 ## [0.3.0] — 2026-10-31
 
 ### Security

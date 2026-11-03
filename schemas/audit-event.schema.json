@@ -20,6 +20,7 @@
     "type": {
       "enum": [
         "grant.issued",
+        "grant.narrowed",
         "grant.revoked",
         "cart.prepared",
         "order.placed",

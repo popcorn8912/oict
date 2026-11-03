@@ -84,25 +84,38 @@ export interface CatalogVariant {
   available: boolean;
 }
 
-/** What the consumer is looking at *right now* inside the experience. */
-export interface Selection {
+/** One line of what the consumer has in front of them: an object in the scene, the variant, how many. */
+export interface CartLine {
   sceneObjectId: string;
   sku: string;
   variantId: string;
   quantity: number;
 }
 
-export interface InteractionSnapshot {
-  sessionId: string;
-  stateVersion: number;
+/** A single-item cart, as reported by `POST /v1/sessions/:id/selection`. */
+export type Selection = CartLine;
+
+/** Cart rules (STB-10). */
+export const CART_LIMITS = { maxLines: 20, maxQuantity: 99 } as const;
+
+export interface SnapshotLine {
   sceneObjectId: string;
   sku: string;
   variantId: string;
   variantVersion: number;
   priceVersion: number;
   unitPriceMinor: number;
-  currency: string;
   quantity: number;
+  lineTotalMinor: number;
+}
+
+/** The server's authoritative view of the cart the consumer is looking at (STB-2). */
+export interface InteractionSnapshot {
+  sessionId: string;
+  stateVersion: number;
+  currency: string;
+  totalMinor: number;
+  lines: SnapshotLine[];
 }
 
 export interface Session {
@@ -110,7 +123,7 @@ export interface Session {
   consumerId: string;
   applicationId: string;
   stateVersion: number;
-  selection?: Selection;
+  cart?: CartLine[];
   createdAt: number;
 }
 
@@ -242,7 +255,7 @@ export interface Caller {
   scopes?: string[];
 }
 
-export type AuditType = "grant.issued" | "grant.revoked" | "cart.prepared" | "order.placed" | "order.refused";
+export type AuditType = "grant.issued" | "grant.narrowed" | "grant.revoked" | "cart.prepared" | "order.placed" | "order.refused";
 
 /** One append-only audit record: who did what, on whose behalf. */
 export interface AuditEvent {

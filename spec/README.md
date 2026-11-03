@@ -1,4 +1,4 @@
-# OICT Specification · v0.2 (Draft)
+# OICT Specification · v0.3 (Draft)
 
 > **Status:** Working draft. Breaking changes are expected before v1.0.
 > Feedback is welcome through [GitHub Discussions](../../../discussions) or a [spec proposal issue](../../../issues/new?template=spec-proposal.yml).

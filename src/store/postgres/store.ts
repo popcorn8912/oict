@@ -1,4 +1,4 @@
-import type { AuditEvent, CatalogItem, CatalogVariant, DraftCart, Grant, Order, Participant, Scope, Selection, Session } from "../../core/types.ts";
+import type { AuditEvent, CartLine, CatalogItem, CatalogVariant, DraftCart, Grant, Order, Participant, Scope, Session } from "../../core/types.ts";
 import type { CommitOrderInput, CommitOrderResult, IdempotencyRecord, Store } from "../store.ts";
 import { migrate } from "./migrations.ts";
 import { Pool, type PoolClient, type Queryable } from "./wire.ts";
@@ -52,9 +52,7 @@ function toSession(r: Row): Session {
     consumerId: r.consumer_id,
     applicationId: r.application_id,
     stateVersion: Number(r.state_version),
-    selection: r.sku
-      ? { sceneObjectId: r.scene_object_id, sku: r.sku, variantId: r.variant_id, quantity: Number(r.quantity) }
-      : undefined,
+    cart: Array.isArray(r.cart) && r.cart.length ? (r.cart as CartLine[]) : undefined,
     createdAt: Number(r.created_at),
   };
 }
@@ -193,6 +191,17 @@ export class PostgresStore implements Store {
     return rows[0] ? toGrant(rows[0]) : undefined;
   }
 
+  async narrowGrant(id: string, remove: Scope[]) {
+    // One statement, so a concurrent narrowing can never be lost.
+    const { rows } = await this.pool.query<Row>(
+      `UPDATE grants
+         SET scopes = COALESCE((SELECT jsonb_agg(s) FROM jsonb_array_elements_text(scopes) AS s WHERE NOT ($2::jsonb ? s)), '[]'::jsonb)
+       WHERE id = $1 RETURNING *`,
+      [id, JSON.stringify(remove)],
+    );
+    return rows[0] ? toGrant(rows[0]) : undefined;
+  }
+
   // ─────────────────────────────── catalog ────────────────────────────────
 
   async listCatalog() {
@@ -244,13 +253,11 @@ export class PostgresStore implements Store {
     return rows[0] ? toSession(rows[0]) : undefined;
   }
 
-  async updateSelection(id: string, sel: Selection) {
+  async updateCart(id: string, lines: CartLine[]) {
     // One statement: the row lock makes concurrent updates serialize, so no version is ever lost.
     const { rows } = await this.pool.query<Row>(
-      `UPDATE sessions
-         SET scene_object_id = $2, sku = $3, variant_id = $4, quantity = $5, state_version = state_version + 1
-       WHERE id = $1 RETURNING *`,
-      [id, sel.sceneObjectId, sel.sku, sel.variantId, sel.quantity],
+      "UPDATE sessions SET cart = $2::jsonb, state_version = state_version + 1 WHERE id = $1 RETURNING *",
+      [id, JSON.stringify(lines)],
     );
     return rows[0] ? toSession(rows[0]) : undefined;
   }
@@ -335,18 +342,19 @@ export class PostgresStore implements Store {
     );
     if (nonce.rowCount === 0) return { kind: "nonce_consumed" };
 
-    const s = await c.query<Row>("SELECT state_version, sku, variant_id FROM sessions WHERE id = $1 FOR UPDATE", [e.sessionId]);
-    const v = await c.query<Row>(
-      "SELECT variant_version, price_version FROM catalog_variants WHERE sku = $1 AND variant_id = $2 FOR SHARE",
-      [e.sku, e.variantId],
-    );
-    const sr = s.rows[0], vr = v.rows[0];
-    if (
-      !sr || !vr ||
-      Number(sr.state_version) !== e.stateVersion || sr.sku !== e.sku || sr.variant_id !== e.variantId ||
-      Number(vr.variant_version) !== e.variantVersion || Number(vr.price_version) !== e.priceVersion
-    ) {
-      return { kind: "stale" };
+    const s = await c.query<Row>("SELECT state_version FROM sessions WHERE id = $1 FOR UPDATE", [e.sessionId]);
+    if (!s.rows[0] || Number(s.rows[0].state_version) !== e.stateVersion) return { kind: "stale" };
+    // Lock variant rows in one fixed order, so two multi-item orders can never deadlock each other.
+    const lines = [...e.lines].sort((a, b) => (a.sku + "\u0000" + a.variantId < b.sku + "\u0000" + b.variantId ? -1 : 1));
+    for (const line of lines) {
+      const v = await c.query<Row>(
+        "SELECT variant_version, price_version FROM catalog_variants WHERE sku = $1 AND variant_id = $2 FOR SHARE",
+        [line.sku, line.variantId],
+      );
+      const vr = v.rows[0];
+      if (!vr || Number(vr.variant_version) !== line.variantVersion || Number(vr.price_version) !== line.priceVersion) {
+        return { kind: "stale" };
+      }
     }
 
     await c.query<Row>(
@@ -361,6 +369,11 @@ export class PostgresStore implements Store {
   }
 
   // ─────────────────────────────── audit ──────────────────────────────────
+
+  async isNonceConsumed(nonce: string) {
+    const { rows } = await this.pool.query<Row>("SELECT 1 FROM consumed_confirmations WHERE nonce = $1", [nonce]);
+    return rows.length > 0;
+  }
 
   async appendAudit(e: AuditEvent) {
     await this.pool.query(AUDIT_INSERT, auditValues(e));

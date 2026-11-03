@@ -164,7 +164,7 @@ try {
   );
   const priceMismatch = Number(
     (await db.pool.query(
-      "SELECT count(*)::int AS n FROM orders WHERE total_minor <> (snapshot->>'unitPriceMinor')::bigint * (snapshot->>'quantity')::int",
+      "SELECT count(*)::int AS n FROM orders WHERE total_minor <> (SELECT sum((l->>'unitPriceMinor')::bigint * (l->>'quantity')::int) FROM jsonb_array_elements(snapshot->'lines') AS l)",
     )).rows[0]!.n,
   );
   const pass = stored === intended && dupes === 0 && priceMismatch === 0 && outcomes.otherErrors === 0 && failures.length === 0;
@@ -189,7 +189,7 @@ try {
 
   const result = {
     benchmark: "oict-cluster",
-    version: "0.3.0",
+    version: "0.4.0",
     config: { instances: INSTANCES, shoppers: SHOPPERS, purchasesPerShopper: PURCHASES, stormSize: STORM, priceRaceShare: PRICE_RACE, seed: SEED },
     database: { intended, stored, duplicateOrders: dupes, priceMismatches: priceMismatch },
     outcomes,

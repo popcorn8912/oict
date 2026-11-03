@@ -2,19 +2,15 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/popcorn8912/oict/schemas/interaction-snapshot.schema.json",
   "title": "OICT Interaction Snapshot",
+  "description": "The server's authoritative view of the consumer's cart (STB-2, STB-10).",
   "type": "object",
   "additionalProperties": false,
   "required": [
     "sessionId",
     "stateVersion",
-    "sceneObjectId",
-    "sku",
-    "variantId",
-    "variantVersion",
-    "priceVersion",
-    "unitPriceMinor",
     "currency",
-    "quantity"
+    "totalMinor",
+    "lines"
   ],
   "properties": {
     "sessionId": {
@@ -24,35 +20,64 @@
       "type": "integer",
       "minimum": 0
     },
-    "sceneObjectId": {
-      "type": "string"
-    },
-    "sku": {
-      "type": "string"
-    },
-    "variantId": {
-      "type": "string"
-    },
-    "variantVersion": {
-      "type": "integer",
-      "minimum": 1
-    },
-    "priceVersion": {
-      "type": "integer",
-      "minimum": 1
-    },
-    "unitPriceMinor": {
-      "type": "integer",
-      "minimum": 0
-    },
     "currency": {
       "type": "string",
       "pattern": "^[A-Z]{3}$"
     },
-    "quantity": {
+    "totalMinor": {
       "type": "integer",
-      "minimum": 1,
-      "maximum": 99
+      "minimum": 0
+    },
+    "lines": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 20,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "sceneObjectId",
+          "sku",
+          "variantId",
+          "variantVersion",
+          "priceVersion",
+          "unitPriceMinor",
+          "quantity",
+          "lineTotalMinor"
+        ],
+        "properties": {
+          "sceneObjectId": {
+            "type": "string"
+          },
+          "sku": {
+            "type": "string"
+          },
+          "variantId": {
+            "type": "string"
+          },
+          "variantVersion": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "priceVersion": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "unitPriceMinor": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "quantity": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 99
+          },
+          "lineTotalMinor": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      }
     }
   }
 }

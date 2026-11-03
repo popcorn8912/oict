@@ -1,5 +1,9 @@
 import { createPublicKey, verify } from "node:crypto";
-import { auth, check, confirm, expectError, idem, must, newKey, order, tokenFor, world, type Client } from "./client.ts";
+import { auth, check, confirm, expectError, idem, must, newKey, order, setCart, tokenFor, world, type Client } from "./client.ts";
+
+const HOODIE = { sku: "SYN-HOODIE-01", variantId: "violet-m" } as const; // 42.00 USD
+const LAMP = { sku: "SYN-LAMP-03", variantId: "std" } as const; // 29.00 USD
+const POSTER_EUR = { sku: "SYN-POSTER-EU", variantId: "a2" } as const; // 19.00 EUR
 
 const b64json = (s: string) => JSON.parse(Buffer.from(s, "base64url").toString("utf8"));
 const b64 = (o: unknown) => Buffer.from(JSON.stringify(o)).toString("base64url");
@@ -182,6 +186,15 @@ export const CASES: Case[] = [
       await expectError(order(w, await confirm(w), newKey(), child.body.id), "LIMIT_EXCEEDED", 403);
     },
   },
+  {
+    id: "OICT-DLG-006", category: "DLG", rule: "DLG-5, STB-10", title: "a spending limit applies to the whole cart, not each line",
+    async run(c) {
+      const w = await world(c);
+      const capped = await must(c.post("/v1/grants", { issuer: "alice", subject: "app", application: "app", scopes: ALL, ttlSeconds: 600, maxOrderTotalMinor: 5000 }), 201);
+      await setCart(w, [{ ...HOODIE, quantity: 1 }, { ...LAMP, quantity: 1 }]); // 42 + 29, each under the cap
+      await expectError(order(w, await confirm(w), newKey(), capped.body.id), "LIMIT_EXCEEDED", 403);
+    },
+  },
 
   // ─────────────────────────────── REV ────────────────────────────────
   {
@@ -221,6 +234,42 @@ export const CASES: Case[] = [
     async run(c) {
       const w = await world(c);
       await expectError(c.post(`/v1/grants/${w.appGrant}/revoke`, { by: "bob" }), "PRINCIPAL_MISMATCH", 403);
+    },
+  },
+  {
+    id: "OICT-REV-005", category: "REV", rule: "REV-5", title: "withdrawing order:place stops purchases but keeps order history",
+    async run(c) {
+      const w = await world(c);
+      const placed = await must(order(w, await confirm(w)), 201);
+      const r = await must(c.post(`/v1/grants/${w.appGrant}/revoke`, { by: "alice", scopes: ["order:place"] }), 200);
+      check(!r.body.scopes.includes("order:place") && r.body.scopes.includes("order:read"), "grant should keep its other scopes");
+      await expectError(order(w, await confirm(w)), "SCOPE_INSUFFICIENT", 403);
+      await must(c.get(`/v1/orders/${placed.body.id}`, auth(w.appGrant)), 200);
+    },
+  },
+  {
+    id: "OICT-REV-006", category: "REV", rule: "REV-5", title: "narrowing a grant narrows every grant delegated from it",
+    async run(c) {
+      const w = await world(c);
+      const child = await must(
+        c.post("/v1/grants", { issuer: "app", subject: "helper", application: "app", scopes: ["cart:write"], ttlSeconds: 60, parentGrantId: w.appGrant }),
+        201,
+      );
+      await must(c.post("/v1/carts", { sessionId: w.sessionId, stateVersion: w.stateVersion }, auth(child.body.id)), 201);
+      await must(c.post(`/v1/grants/${w.appGrant}/revoke`, { by: "alice", scopes: ["cart:write"] }), 200);
+      await expectError(c.post("/v1/carts", { sessionId: w.sessionId, stateVersion: w.stateVersion }, auth(child.body.id)), "SCOPE_INSUFFICIENT", 403);
+      await expectError(
+        c.post("/v1/grants", { issuer: "app", subject: "helper", application: "app", scopes: ["cart:write"], ttlSeconds: 60, parentGrantId: w.appGrant }),
+        "DELEGATION_INVALID",
+      );
+    },
+  },
+  {
+    id: "OICT-REV-007", category: "REV", rule: "REV-5", title: "withdrawing every scope revokes the grant",
+    async run(c) {
+      const w = await world(c, { appScopes: ["order:place", "order:read"] });
+      await must(c.post(`/v1/grants/${w.appGrant}/revoke`, { by: "alice", scopes: ["order:place", "order:read"] }), 200);
+      await expectError(c.get("/v1/orders/ord_none", auth(w.appGrant)), "GRANT_INACTIVE", 401);
     },
   },
 
@@ -352,7 +401,7 @@ export const CASES: Case[] = [
       const w = await world(c);
       const r = await must(order(w, await confirm(w)), 201);
       check(r.body.snapshotHash === w.snapshotHash, "order snapshot differs from confirmed snapshot");
-      check(r.body.snapshot.variantId === "violet-m" && r.body.totalMinor === 4200, "order contents differ from what was confirmed");
+      check(r.body.snapshot.lines?.[0]?.variantId === "violet-m" && r.body.totalMinor === 4200, "order contents differ from what was confirmed");
     },
   },
   {
@@ -377,6 +426,70 @@ export const CASES: Case[] = [
     async run(c) {
       const w = await world(c);
       await expectError(order(w, tokenFor(w.appGrant)!), "CONFIRMATION_INVALID", 401);
+    },
+  },
+  {
+    id: "OICT-STB-011", category: "STB", rule: "STB-2, STB-10", title: "a multi-item confirmation and order cover every line",
+    async run(c) {
+      const w = await world(c);
+      const cart = await setCart(w, [{ ...HOODIE, quantity: 1 }, { ...LAMP, quantity: 2 }]);
+      check(cart.body.snapshot.lines.length === 2 && cart.body.snapshot.totalMinor === 4200 + 2 * 2900, "snapshot must list every line and total them");
+      const r = await must(order(w, await confirm(w)), 201);
+      check(r.body.totalMinor === 10000 && r.body.snapshot.lines.length === 2, "order must carry every confirmed line and the confirmed total");
+      check(r.body.snapshotHash === w.snapshotHash, "order must be bound to the confirmed cart");
+    },
+  },
+  {
+    id: "OICT-STB-012", category: "STB", rule: "STB-1, STB-7", title: "changing a quantity after confirmation blocks the order",
+    async run(c) {
+      const w = await world(c);
+      await setCart(w, [{ ...HOODIE, quantity: 1 }, { ...LAMP, quantity: 2 }]);
+      const t = await confirm(w);
+      await setCart(w, [{ ...HOODIE, quantity: 1 }, { ...LAMP, quantity: 3 }]);
+      await expectError(order(w, t), "STALE_CONFIRMATION", 409);
+    },
+  },
+  {
+    id: "OICT-STB-013", category: "STB", rule: "STB-7", title: "a price change on any line blocks the order",
+    async run(c) {
+      const w = await world(c);
+      await setCart(w, [{ ...HOODIE, quantity: 1 }, { ...LAMP, quantity: 1 }]);
+      const t = await confirm(w);
+      await must(c.post("/v1/_test/price", { ...LAMP, unitPriceMinor: 3100 }), 200);
+      await expectError(order(w, t), "STALE_CONFIRMATION", 409);
+    },
+  },
+  {
+    id: "OICT-STB-014", category: "STB", rule: "STB-1, STB-7", title: "removing a line after confirmation blocks the order",
+    async run(c) {
+      const w = await world(c);
+      await setCart(w, [{ ...HOODIE, quantity: 1 }, { ...LAMP, quantity: 1 }]);
+      const t = await confirm(w);
+      await setCart(w, [{ ...HOODIE, quantity: 1 }]);
+      await expectError(order(w, t), "STALE_CONFIRMATION", 409);
+    },
+  },
+  {
+    id: "OICT-STB-015", category: "STB", rule: "STB-10", title: "a cart cannot mix currencies",
+    async run(c) {
+      const w = await world(c);
+      const r = await setCart(w, [{ ...HOODIE, quantity: 1 }, { ...POSTER_EUR, quantity: 1 }], 400);
+      check(r.body?.error?.code === "BAD_REQUEST", "mixed-currency cart must be refused with BAD_REQUEST");
+    },
+  },
+  {
+    id: "OICT-STB-016", category: "STB", rule: "STB-10", title: "malformed carts are refused: duplicates, empty, too many lines, bad quantity",
+    async run(c) {
+      const w = await world(c);
+      await setCart(w, [{ ...HOODIE, quantity: 1 }, { ...HOODIE, quantity: 2 }], 400);
+      await setCart(w, [], 400);
+      await setCart(w, [{ ...LAMP, quantity: 0 }], 400);
+      await setCart(w, [{ ...LAMP, quantity: 100 }], 400);
+      const many = Array.from({ length: 21 }, (_, i) => ({ sku: "SYN-LAMP-03", variantId: "std", quantity: 1, sceneObjectId: `o${i}` }));
+      await setCart(w, many, 400);
+      const before = w.snapshotHash;
+      const view = await must(c.get(`/v1/sessions/${w.sessionId}`), 200);
+      check(view.body.snapshotHash === before, "a refused cart must not change the session");
     },
   },
 
@@ -458,6 +571,18 @@ export const CASES: Case[] = [
     async run(c) {
       const w = await world(c, { ageBand: "13-17", sku: "SYN-LAMP-03", variantId: "std" });
       await must(order(w, await confirm(w)), 201);
+    },
+  },
+  {
+    id: "OICT-MIN-005", category: "MIN", rule: "MIN-2, STB-10", title: "the teen limit applies to the cart total, not each line",
+    async run(c) {
+      const w = await world(c, { ageBand: "13-17" });
+      await setCart(w, [{ ...HOODIE, quantity: 1 }, { ...LAMP, quantity: 1 }]); // 42 + 29: each under 50, total above
+      await expectError(
+        c.post("/v1/confirmations", { sessionId: w.sessionId, consumerId: "alice", snapshotHash: w.snapshotHash }),
+        "GUARDIAN_CONSENT_REQUIRED",
+        403,
+      );
     },
   },
 

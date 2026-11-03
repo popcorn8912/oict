@@ -1,5 +1,6 @@
-# Two OICT instances sharing one PostgreSQL database, plus a conformance run.
+# Two OICT instances sharing one PostgreSQL database, the sample clients, and a conformance run.
 #   docker compose up --build
+#   clients: http://localhost:8080   server: http://localhost:8787
 x-oict: &oict
   build: .
   environment: &oict-env
@@ -35,6 +36,14 @@ services:
     <<: *oict
     environment: { <<: *oict-env, OICT_INSTANCE_ID: oict-2 }
     ports: ["8788:8787"]
+
+  clients:
+    image: nginx:1.27-alpine
+    volumes:
+      - ./clients:/usr/share/nginx/html:ro
+    ports: ["8080:80"]
+    depends_on:
+      oict-1: { condition: service_healthy }
 
   conformance:
     build: .

@@ -10,6 +10,8 @@ import {
   type AccessTokenClaims,
   type AuditEvent,
   type Caller,
+  CART_LIMITS,
+  type CartLine,
   type CatalogItem,
   type CatalogVariant,
   type ConfirmationClaims,
@@ -262,7 +264,7 @@ export class OictEngine {
       if (parent.application !== app.id) {
         throw new OictError("DELEGATION_INVALID", "a delegated grant must stay within the same application");
       }
-      const extra = input.scopes.filter((s) => !parent.scopes.includes(s));
+      const extra = input.scopes.filter((s) => !chain.every((g) => g.scopes.includes(s)));
       if (extra.length) {
         throw new OictError("DELEGATION_INVALID", `scopes exceed parent grant: ${extra.join(", ")}`);
       }
@@ -312,13 +314,30 @@ export class OictEngine {
     return stripUndefined(grant);
   }
 
-  /** REV-2/REV-4: revocation cascades; only the issuer or the consumer may revoke. */
-  async revokeGrant(grantId: string, by: string): Promise<Grant> {
+  /**
+   * REV-2/REV-4/REV-5: revocation cascades; only the issuer or the consumer may
+   * revoke. With `scopes`, only those scopes are withdrawn (partial revocation):
+   * the grant keeps the rest, and every grant delegated from it loses them too,
+   * because effective scopes are the intersection along the chain.
+   */
+  async revokeGrant(grantId: string, by: string, scopes?: Scope[]): Promise<Grant> {
     const chain = await this.store.getGrantChain(grantId);
     const grant = chain[0];
     if (!grant) throw new OictError("UNKNOWN_GRANT", "grant not found");
     if (by !== grant.issuer && by !== chain[chain.length - 1]!.issuer) {
       throw new OictError("PRINCIPAL_MISMATCH", "only the issuer or the consumer may revoke a grant");
+    }
+    if (scopes !== undefined) {
+      if (!Array.isArray(scopes) || scopes.length === 0 || scopes.some((x) => !ALL_SCOPES.includes(x))) {
+        throw new OictError("BAD_REQUEST", "scopes must be a non-empty list of known scopes");
+      }
+      const narrowed = (await this.store.narrowGrant(grantId, scopes))!;
+      await this.audit("grant.narrowed", {
+        actor: by, consumerId: chain[chain.length - 1]!.issuer, applicationId: grant.application, grantId,
+        detail: { removed: scopes, remaining: narrowed.scopes },
+      });
+      if (narrowed.scopes.length > 0) return stripUndefined(narrowed);
+      // Nothing left: the grant is spent.
     }
     const revoked = (await this.store.revokeGrant(grantId, this.now()))!;
     await this.audit("grant.revoked", { actor: by, consumerId: chain[chain.length - 1]!.issuer, applicationId: grant.application, grantId });
@@ -348,7 +367,8 @@ export class OictEngine {
       throw new OictError("UNAUTHENTICATED", "the access token was not issued to this grant's subject");
     }
     if (!this.chainActive(chain)) throw new OictError("GRANT_INACTIVE", "grant is revoked or expired");
-    if (!grant.scopes.includes(scope)) throw new OictError("SCOPE_INSUFFICIENT", `grant lacks ${scope}`);
+    // REV-5: effective scopes are the intersection along the delegation chain.
+    if (!chain.every((g) => g.scopes.includes(scope))) throw new OictError("SCOPE_INSUFFICIENT", `grant lacks ${scope}`);
     if (caller?.scopes && !caller.scopes.includes(scope)) throw new OictError("SCOPE_INSUFFICIENT", `access token lacks ${scope}`);
     return { grant, rootConsumerId: chain[chain.length - 1]!.issuer };
   }
@@ -403,39 +423,73 @@ export class OictEngine {
     return s;
   }
 
-  /** STB-1: every change of what the consumer is looking at bumps stateVersion. */
-  async updateSelection(
+  /** A single-item cart: what the consumer is pointing at in the scene. */
+  updateSelection(sessionId: string, selection: Selection) {
+    return this.updateCart(sessionId, [selection]);
+  }
+
+  /**
+   * STB-1 / STB-10: replace the whole cart in one step. Every change — a new
+   * line, a removed line, a different variant or quantity — bumps stateVersion.
+   */
+  async updateCart(
     sessionId: string,
-    selection: Selection,
+    lines: CartLine[],
   ): Promise<{ session: Session; snapshot: InteractionSnapshot; snapshotHash: string }> {
-    if (!selection?.sceneObjectId || !selection.sku || !selection.variantId) {
-      throw new OictError("BAD_REQUEST", "selection needs sceneObjectId, sku and variantId");
+    if (!Array.isArray(lines) || lines.length === 0) throw new OictError("BAD_REQUEST", "a cart needs at least one line");
+    if (lines.length > CART_LIMITS.maxLines) throw new OictError("BAD_REQUEST", `a cart holds at most ${CART_LIMITS.maxLines} lines`);
+    const seen = new Set<string>();
+    const clean: CartLine[] = [];
+    let currency: string | undefined;
+    for (const l of lines) {
+      if (!l || typeof l.sceneObjectId !== "string" || !l.sceneObjectId || typeof l.sku !== "string" || !l.sku || typeof l.variantId !== "string" || !l.variantId) {
+        throw new OictError("BAD_REQUEST", "every line needs sceneObjectId, sku and variantId");
+      }
+      if (!Number.isInteger(l.quantity) || l.quantity < 1 || l.quantity > CART_LIMITS.maxQuantity) {
+        throw new OictError("BAD_REQUEST", `quantity must be an integer between 1 and ${CART_LIMITS.maxQuantity}`);
+      }
+      const key = `${l.sku}\u0000${l.variantId}`;
+      if (seen.has(key)) throw new OictError("BAD_REQUEST", `${l.sku}/${l.variantId} appears twice; change its quantity instead`);
+      seen.add(key);
+      const { item, variant } = await this.variant(l.sku, l.variantId);
+      if (!variant.available) throw new OictError("BAD_REQUEST", `${l.sku}/${l.variantId} is not available`);
+      if (currency && item.currency !== currency) throw new OictError("BAD_REQUEST", "every line in a cart must use the same currency");
+      currency = item.currency;
+      clean.push({ sceneObjectId: l.sceneObjectId, sku: l.sku, variantId: l.variantId, quantity: l.quantity });
     }
-    if (!Number.isInteger(selection.quantity) || selection.quantity < 1 || selection.quantity > 99) {
-      throw new OictError("BAD_REQUEST", "quantity must be an integer between 1 and 99");
-    }
-    await this.variant(selection.sku, selection.variantId);
-    const session = await this.store.updateSelection(sessionId, { ...selection });
+    const session = await this.store.updateCart(sessionId, clean);
     if (!session) throw new OictError("UNKNOWN_SESSION", `unknown session ${sessionId}`);
     const snapshot = await this.snapshot(session);
     return { session, snapshot, snapshotHash: digest(snapshot) };
   }
 
-  /** The authoritative, server-side view of the current interaction state. */
+  /** Empty the cart (after checkout, or when the consumer clears it). Bumps stateVersion like any change. */
+  async clearCart(sessionId: string): Promise<Session> {
+    const session = await this.store.updateCart(sessionId, []);
+    if (!session) throw new OictError("UNKNOWN_SESSION", `unknown session ${sessionId}`);
+    return session;
+  }
+
+  /** The authoritative, server-side view of the cart the consumer is looking at (STB-2). */
   async snapshot(session: Session): Promise<InteractionSnapshot> {
-    if (!session.selection) throw new OictError("BAD_REQUEST", "session has no selection yet");
-    const { item, variant } = await this.variant(session.selection.sku, session.selection.variantId);
-    return {
-      sessionId: session.id,
-      stateVersion: session.stateVersion,
-      sceneObjectId: session.selection.sceneObjectId,
+    if (!session.cart?.length) throw new OictError("BAD_REQUEST", "session has nothing selected yet");
+    const resolved = await Promise.all(session.cart.map(async (l) => ({ l, ...(await this.variant(l.sku, l.variantId)) })));
+    const lines = resolved.map(({ l, item, variant }) => ({
+      sceneObjectId: l.sceneObjectId,
       sku: item.sku,
       variantId: variant.variantId,
       variantVersion: variant.variantVersion,
       priceVersion: variant.priceVersion,
       unitPriceMinor: variant.unitPriceMinor,
-      currency: item.currency,
-      quantity: session.selection.quantity,
+      quantity: l.quantity,
+      lineTotalMinor: variant.unitPriceMinor * l.quantity,
+    }));
+    return {
+      sessionId: session.id,
+      stateVersion: session.stateVersion,
+      currency: resolved[0]!.item.currency,
+      totalMinor: lines.reduce((sum, x) => sum + x.lineTotalMinor, 0),
+      lines,
     };
   }
 
@@ -485,7 +539,7 @@ export class OictEngine {
     if (input.snapshotHash !== currentHash) {
       throw new OictError("STALE_CONFIRMATION", "the confirmed view no longer matches the current state");
     }
-    const total = snapshot.unitPriceMinor * snapshot.quantity;
+    const total = snapshot.totalMinor;
     this.assertMinorPolicy(consumer, total, input.guardianConsentRef);
 
     const iat = this.now();
@@ -565,7 +619,11 @@ export class OictEngine {
     if (claims.exp <= this.now()) {
       throw new OictError("CONFIRMATION_EXPIRED", "confirmation expired; ask the consumer to confirm again");
     }
+    if (await this.store.isNonceConsumed(claims.nonce)) {
+      throw new OictError("CONFIRMATION_CONSUMED", "this confirmation was already used for an order");
+    }
     // STB-7 (pre-check): the state must still be what the consumer confirmed.
+    if (!session.cart?.length) throw new OictError("STALE_CONFIRMATION", "the cart was emptied after the consumer confirmed");
     const snapshot = await this.snapshot(session);
     const currentHash = digest(snapshot);
     if (currentHash !== claims.snapshotHash) {
@@ -600,10 +658,7 @@ export class OictEngine {
       expect: {
         sessionId: session.id,
         stateVersion: snapshot.stateVersion,
-        sku: snapshot.sku,
-        variantId: snapshot.variantId,
-        variantVersion: snapshot.variantVersion,
-        priceVersion: snapshot.priceVersion,
+        lines: snapshot.lines.map((l) => ({ sku: l.sku, variantId: l.variantId, variantVersion: l.variantVersion, priceVersion: l.priceVersion })),
       },
       audit: this.event("order.placed", {
         actor: grant.subject, consumerId: rootConsumerId, applicationId: grant.application, grantId: grant.id,

@@ -7,7 +7,7 @@
 | **3 · Independent evaluation** | Year 2 | Trial reports from ≥ 3 external teams · peer-reviewed paper · ≥ 2 talks | Written trial records · paper accepted |
 | **4 · Adoption & standardization** | Year 3 | Spec v2.0 · extension proposal to open-protocol communities · maintainer community | ≥ 5 independent organizations trialled or integrated · ≥ 1 proposal submitted |
 
-## Now — v0.1 (this release)
+## Done — v0.1
 
 - [x] Spec draft: participants, delegation, revocation, state binding, agent controls, minor protection, idempotency, errors
 - [x] Zero-dependency reference engine and HTTP server
@@ -27,15 +27,20 @@
 - [x] Signed Bearer access tokens bound to the grant's subject; external issuers can be trusted
 - [x] Append-only audit trail, Prometheus metrics, structured logs with request ids
 
-## Next — v0.4
+## Done — v0.4
 
-- [ ] Conformance suite to ≥ 50 cases (multi-item carts, quantity changes, partial revocation)
-- [ ] Multi-item cart snapshots
-- [ ] Containerized sample clients: three.js scene and chat-assistant client
-- [ ] Integration-effort study protocol (how the 40 % metric is measured)
+- [x] Conformance suite to ≥ 50 cases (57: multi-item carts, quantity changes, partial revocation)
+- [x] Multi-item cart snapshots
+- [x] Containerized sample clients: three.js scene and chat-assistant client
+- [x] Integration-effort study protocol (how the 40 % metric is measured)
+
+## Next — v0.5
+
+- [ ] First independent trial and integration-effort study under the [evaluation protocol](docs/study-protocol.md)
+- [ ] Held-out anomaly set written by reviewers outside the project
+- [ ] Voice and AR-panel interaction profiles
 
 ## Later
 
 - [ ] Game-engine (C#) sample client
-- [ ] Voice and AR-panel interaction profiles
 - [ ] Versioned adapter profiles for open checkout protocols

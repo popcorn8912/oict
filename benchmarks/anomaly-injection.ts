@@ -229,7 +229,7 @@ console.log(`  ${"false-positive rate".padEnd(24)}${String(oict.normal).padStart
 mkdirSync(OUT, { recursive: true });
 const result = {
   benchmark: "oict-anomaly-injection",
-  version: "0.2.0",
+  version: "0.4.0",
   flows: FLOWS,
   seed: SEED,
   note: "Synthetic simulation. Baseline = checkout-only integration that validates the bearer grant and nothing else.",

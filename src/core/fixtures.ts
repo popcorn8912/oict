@@ -32,4 +32,12 @@ export const SYNTHETIC_CATALOG: CatalogItem[] = [
       { variantId: "std", label: "Standard", variantVersion: 1, priceVersion: 1, unitPriceMinor: 2900, available: true },
     ],
   },
+  {
+    sku: "SYN-POSTER-EU",
+    title: "Aurora Print (EU store)",
+    currency: "EUR",
+    variants: [
+      { variantId: "a2", label: "A2", variantVersion: 1, priceVersion: 1, unitPriceMinor: 1900, available: true },
+    ],
+  },
 ];

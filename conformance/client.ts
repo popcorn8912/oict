@@ -127,6 +127,26 @@ export async function confirm(w: World, extra: Record<string, unknown> = {}): Pr
   return r.body.confirmationToken as string;
 }
 
+export interface Line {
+  sceneObjectId?: string;
+  sku: string;
+  variantId: string;
+  quantity: number;
+}
+
+/** Replace the session's cart; updates w.snapshotHash / w.stateVersion so confirm() targets the new cart. */
+export async function setCart(w: World, lines: Line[], expectStatus = 200): Promise<Resp> {
+  const r = await w.c.req("PUT", `/v1/sessions/${w.sessionId}/cart`, {
+    lines: lines.map((l, i) => ({ sceneObjectId: l.sceneObjectId ?? `obj-${i}`, ...l })),
+  });
+  if (r.status !== expectStatus) throw new AssertionFailure(`expected HTTP ${expectStatus} from PUT cart, got ${r.status} ${JSON.stringify(r.body)}`);
+  if (r.status === 200) {
+    w.snapshotHash = r.body.snapshotHash;
+    w.stateVersion = r.body.stateVersion;
+  }
+  return r;
+}
+
 export function order(w: World, token: string, key: string = newKey(), grant: string = w.appGrant): Promise<Resp> {
   return w.c.post("/v1/orders", { sessionId: w.sessionId, confirmationToken: token }, { ...auth(grant), ...idem(key) });
 }

@@ -127,7 +127,7 @@ scrape_configs:
 
 ## Performance note
 
-Every grant-scoped request now verifies an Ed25519 signature, and every order and refusal writes an audit row. On the single-machine cluster benchmark this raised median order latency from about 120 ms (v0.2) to about 200 ms with three instances, one database and 40 concurrent clients. Correctness was unchanged: 600 purchases, 600 orders, 0 duplicates. These numbers come from one development machine and only indicate relative cost.
+Every grant-scoped request now verifies an Ed25519 signature, and every order and refusal writes an audit row. On the single-machine cluster benchmark this raised median order latency from about 120 ms (v0.2) to about 200 ms with three instances, one database and 40 concurrent clients. Correctness was unchanged: 600 purchases, 600 orders, 0 duplicates. v0.4 adds a consumed-confirmation pre-check and per-line version checks for multi-item carts; the same run then measured a median of about 230 ms. These numbers come from one development machine and only indicate relative cost.
 
 ## Database driver
 

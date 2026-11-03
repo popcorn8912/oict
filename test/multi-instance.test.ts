@@ -148,7 +148,7 @@ describe("multiple instances on one PostgreSQL database", { skip: !ADMIN_URL && 
 
   it("stores every order with the exact price the consumer confirmed", async () => {
     const { rows } = await db.pool.query(
-      "SELECT count(*)::int AS bad FROM orders WHERE total_minor <> (snapshot->>'unitPriceMinor')::bigint * (snapshot->>'quantity')::int",
+      "SELECT count(*)::int AS bad FROM orders WHERE total_minor <> (SELECT sum((l->>'unitPriceMinor')::bigint * (l->>'quantity')::int) FROM jsonb_array_elements(snapshot->'lines') AS l)",
     );
     assert.equal(rows[0]!.bad, 0);
   });
